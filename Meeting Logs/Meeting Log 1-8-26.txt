@@ -1,0 +1,55 @@
+Attendees: Kyler Nathan Eric 
+Date: 1/8/26
+
+BrainStorm Ideas 
+
+PhotoAlbum Idea-
+More detailed 
+Use cases- Genealogy
+
+Social Media Blocker
+Turn off your social media
+Timer
+Then lockes out based on set amount of time
+Can be used as a break
+Child Proof
+
+Event Planner
+Peoople can post their companies and services
+Has Pricing
+
+
+Closest Gas Station App
+Find a pump 
+Based off current location
+Google maps Data
+Basically find the closest gas station based on your location
+
+Inventory Management System 
+Description: A system to manage inventory for small businesses.
+Key Features:
+Track stock in/out
+Generate reports and alerts for low stock
+Barcode scanning (optional)
+Role management (admin, employee)
+Technologies: Java, Spring Boot, MySQL, Angular
+
+Fitness Tracker
+Tracks reps
+Tracks calories
+Gives workout ideas
+
+Ideas
+StandAlone
+Maybe use a sql database
+Python 
+C++
+Java 
+MySQL(database) 
+HTLM
+
+
+Questions:
+Front end and backend 
+Meeting Log Template
+What's expected 
