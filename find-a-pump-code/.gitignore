@@ -1,0 +1,97 @@
+# Generated gitignore, add/remove as neccesary
+# ========================================================
+# Node / Monorepo / JavaScript / TypeScript
+# ========================================================
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+.pnpm-store/
+package-lock.json
+yarn.lock
+
+# Output
+dist/
+build/
+.cache/
+.next/
+out/
+.eslintcache
+.turbo/
+.vercel/
+.vscode-test/
+
+# TypeScript
+*.tsbuildinfo
+*.tgz
+
+# Env files (keep local secrets safe!)
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+.nyc_output/
+jest.cache/
+jest-html-reporters-*
+
+# PM2 (process manager)
+pids
+*.pid
+*.seed
+
+# ========================================================
+# OS / IDE / Editors
+# ========================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# ========================================================
+# Misc
+# ========================================================
+
+# Lock files (optional — in monorepos many people commit these)
+# Uncomment if you *don’t* want lockfiles tracked
+# pnpm-lock.yaml
+# yarn.lock
+# package-lock.json
+
+# Local development artifacts
+tmp/
+temp/
+*.local
+
+# Docker
+docker-compose.override.yml
