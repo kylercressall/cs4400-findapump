@@ -1,5 +1,8 @@
 "use client";
 
+const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+
 import { GoogleMap, useJsApiLoader } from "@react-google-maps/api";
 
 const center = {
