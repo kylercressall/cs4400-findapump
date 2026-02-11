@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import taskRoutes from "./routes/task.routes";
+import priceRoutes from "./routes/price.routes";
 
 const app = express();
 
@@ -20,6 +20,8 @@ app.get("/", (_req, res) => {
 //   routes (url to controller, no logic) ->
 //   controller (input validation, status codes) ->
 //   services (business logic, db calls)
-app.use("/api/tasks", taskRoutes);
+// app.use("/api/tasks", taskRoutes);
+
+app.use("/api/prices", priceRoutes);
 
 export default app;
