@@ -24,5 +24,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc"
-  }
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+}
 }
