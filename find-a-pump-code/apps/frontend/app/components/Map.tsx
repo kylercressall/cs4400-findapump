@@ -1,5 +1,7 @@
 "use client";
 
+const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY; 
+
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
 
