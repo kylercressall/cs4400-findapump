@@ -16,6 +16,12 @@
   "license": "ISC",
   "packageManager": "pnpm@10.15.0",
   "devDependencies": {
+    "prisma": "^7.4.0",
     "turbo": "latest"
-  }
+  },
+  "dependencies": {
+    "@prisma/client": "^7.4.0"
+  },
+  "main": "index.js",
+  "type": "commonjs"
 }
