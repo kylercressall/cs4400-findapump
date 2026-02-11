@@ -1,3 +1,5 @@
+This is made from my create tables, translated over to prisma/sqlite
+
 // schema.prisma
 datasource db {
   provider = "sqlite"
@@ -10,7 +12,7 @@ generator client {
 
 model User {
   id         String       @id @default(uuid()) @map("user_id")
-  username   String?
+  username   String?      @db.VarChar(40)
   UserConfig UserConfig[]
 
   @@map("User")
@@ -18,7 +20,7 @@ model User {
 
 model FuelType {
   id        String      @id @default(uuid()) @map("fuel_type_id")
-  name      String?
+  name      String?     @db.VarChar(30)
   FuelPrice FuelPrice[]
   UserConfig UserConfig[]
 
@@ -38,8 +40,8 @@ model UserConfig {
 
 model StationBrand {
   id        String    @id @default(uuid()) @map("station_brand_id")
-  brandName String?   @map("brand_name")
-  logoUrl   String?   @map("logo_url")
+  brandName String?   @map("brand_name") @db.VarChar(50)
+  logoUrl   String?   @map("logo_url") @db.VarChar(150)
   Station   Station[]
 
   @@map("StationBrand")
@@ -47,11 +49,11 @@ model StationBrand {
 
 model Location {
   id            String    @id @default(uuid()) @map("location_id")
-  googleMapsUrl String?   @map("google_maps_url")
-  street        String?
-  city          String?
-  zip           String?
-  country       String?
+  googleMapsUrl String?   @map("google_maps_url") @db.VarChar(150)
+  street        String?   @db.VarChar(30)
+  city          String?   @db.VarChar(30)
+  zip           String?   @db.VarChar(30)
+  country       String?   @db.VarChar(30)
   lat           Float?
   long          Float?
   Station       Station[]
@@ -75,7 +77,7 @@ model FuelPrice {
   id         String   @id @default(uuid()) @map("fuel_price_id")
   stationId  String   @map("station_id")
   fuelTypeId String   @map("fuel_type_id")
-  fuelUnit   String?  @map("fuel_unit")
+  fuelUnit   String?  @map("fuel_unit") @db.VarChar(20)
   fuelPrice  Float?   @map("fuel_price")
   createdAt  DateTime @map("created_at")
   

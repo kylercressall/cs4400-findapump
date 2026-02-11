@@ -11,3 +11,9 @@ Documentation folder will contain all of our documents for the project.
 - React components are kept in frontend/app/components
 - The backend has industry-standard separation between routes -> controllers -> services to keep all the logic properly separated
 - We can interact with the sqlite database using the ORM Prisma. This was in my base project (is also standard to use an ORM) but we can also use normal sql as well
+
+
+In case the data in the db doesn't carry over, use
+`npx prisma db seed` in the backend folder to generate starting data in seed.ts
+
+Also use npx prisma studio to browse the database at localhost:5555
