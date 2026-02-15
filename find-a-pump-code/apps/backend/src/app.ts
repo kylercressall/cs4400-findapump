@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import priceRoutes from "./routes/price.routes";
+import stationRoutes from "./routes/station.routes";
 
 const app = express();
 
@@ -23,5 +24,6 @@ app.get("/", (_req, res) => {
 // app.use("/api/tasks", taskRoutes);
 
 app.use("/api/prices", priceRoutes);
+app.use("/api/stations", stationRoutes);
 
 export default app;
