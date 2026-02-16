@@ -1,18 +1,134 @@
-# Find A Pump Project
+# Find A Pump
 
-Documentation folder will contain all of our documents for the project.
+A full-stack web application that allows users to locate nearby gas stations and compare fuel prices through an interactive map interface.
 
-### Technical overview and introduction to the project:
+## Project Overview
 
-- The find-a-pump-code folder has all the code contained in it
-- `cd find-a-pump-code` then `npm install` then `npm run dev` will start the project locally
-- This is a mono-repo project with a separated frontend/backend apps. When you run `npm run dev` in the find-a-pump-code folder you will start both front and backend to run at the same time using a package called Turbo.
-- The frontend is Nextjs and styling with Tailwind (we can talk about if we keep that styling or we do our own css)
-- React components are kept in frontend/app/components
-- The backend has industry-standard separation between routes -> controllers -> services to keep all the logic properly separated
-- We can interact with the sqlite database using the ORM Prisma. This was in my base project (is also standard to use an ORM) but we can also use normal sql as well
+**Find A Pump** is a monorepo-based full-stack application consisting of:
 
-In case the data in the db doesn't carry over, use
-`npx prisma db seed` in the backend folder to generate starting data in seed.ts
+- A Next.js frontend  
+- A Node.js + Express backend  
+- A SQLite database managed with Prisma ORM  
+- Turborepo for running frontend and backend concurrently  
 
-Also use npx prisma studio to browse the database at localhost:5555
+The backend follows industry-standard architecture:
+
+Routes → Controllers → Services
+
+This separation ensures:
+- Routes define endpoints only  
+- Controllers handle validation and HTTP responses  
+- Services contain business logic and database operations  
+
+## Repository Structure
+
+```
+Find-A-Pump-Project/
+│
+├── documentation/
+├── find-a-pump-code/
+│   ├── apps/
+│   │   ├── frontend/
+│   │   └── backend/
+│   ├── prisma/
+│   ├── package.json
+│   ├── turbo.json
+│   └── pnpm-workspace.yaml
+```
+
+## Prerequisites
+
+- Node.js (v20+)
+- pnpm
+
+Install pnpm if needed:
+
+```bash
+npm install -g pnpm
+```
+
+Verify installations:
+
+```bash
+node -v
+pnpm -v
+```
+
+## Installation & Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/kylercressall/cs4400-findapump.git
+cd cs4400-findapump/find-a-pump-code
+```
+
+### 2. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 3. Set Up Environment Variables
+
+Create the following files:
+
+**apps/backend/.env**
+```env
+DATABASE_URL="file:./dev.db"
+PORT=4000
+```
+
+**apps/frontend/.env.local**
+```env
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+```
+Note: A valid Google Maps JavaScript API key is required for the map to render properly.
+
+### 4. Initialize Database (First Time Only)
+
+```bash
+cd apps/backend
+pnpm prisma generate
+pnpm prisma db push
+pnpm prisma db seed
+cd ../..
+```
+
+## Running the Application
+
+From the `find-a-pump-code` directory:
+
+```bash
+pnpm run dev
+```
+
+This starts both applications:
+
+- Frontend: http://localhost:3000  
+- Backend: http://localhost:4000  
+
+Restart the development server after modifying environment variables.
+
+## Viewing the Database (Optional)
+
+To inspect the database:
+
+```bash
+cd apps/backend
+pnpm prisma studio
+```
+
+Then visit:
+
+http://localhost:5555
+
+## Backend Architecture
+
+The backend uses structured separation:
+
+- `routes/` – Defines API endpoints  
+- `controllers/` – Handles validation and HTTP responses  
+- `services/` – Contains business logic and database operations  
+
+This structure improves maintainability, scalability, and clarity.
