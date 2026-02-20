@@ -23,10 +23,12 @@
     "typescript": "^5.9.2"
   },
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "prisma:generate": "pnpm dlx prisma@6.19.2 generate --schema ./prisma/schema.prisma",
+    "dev": "pnpm run prisma:generate && ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc"
   },
   "prisma": {
+    "schema": "./prisma/schema.prisma",
     "seed": "tsx prisma/seed.ts"
   }
 }
