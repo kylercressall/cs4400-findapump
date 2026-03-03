@@ -16,16 +16,22 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^20.19.14",
+    "@types/supertest": "^6.0.3",
     "prisma": "^6.19.2",
     "src": "^1.1.2",
     "ts-node-dev": "^2.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "supertest": "^7.1.4",
+    "vitest": "^2.1.9"
   },
   "scripts": {
     "prisma:generate": "pnpm dlx prisma@6.19.2 generate --schema ./prisma/schema.prisma",
     "dev": "pnpm run prisma:generate && ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "prisma": {
     "schema": "./prisma/schema.prisma",
