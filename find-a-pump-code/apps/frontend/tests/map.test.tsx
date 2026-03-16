@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useEffect } from "react";
 import Map from "../app/components/Map";
+import * as GoogleMapsApi from "@react-google-maps/api";
 
 const mockPanTo = vi.fn();
 const nearbySearchMock = vi.fn();
@@ -29,6 +30,8 @@ describe("Map", () => {
     markerProps = [];
     nearbySearchMock.mockReset();
 
+    vi.mocked(GoogleMapsApi.useJsApiLoader).mockReturnValue({ isLoaded: true } as any);
+
     Object.defineProperty(global.navigator, "geolocation", {
       value: {
         getCurrentPosition: vi.fn(),
@@ -49,6 +52,23 @@ describe("Map", () => {
         },
       },
     };
+  });
+
+  it("shows loading state before the map API is loaded", () => {
+    vi.mocked(GoogleMapsApi.useJsApiLoader).mockReturnValue({ isLoaded: false } as any);
+
+    render(<Map />);
+
+    expect(screen.getByText("Loading map...")).toBeInTheDocument();
+    expect(screen.queryByTestId("google-map")).not.toBeInTheDocument();
+  });
+
+  it("renders the map legend", () => {
+    render(<Map />);
+
+    expect(screen.getByText("Legend")).toBeInTheDocument();
+    expect(screen.getByText("Gas Station")).toBeInTheDocument();
+    expect(screen.getByText("EV Charging Station")).toBeInTheDocument();
   });
 
   it("detects user location and displays nearby stations", async () => {
@@ -115,6 +135,43 @@ describe("Map", () => {
     expect(nearbySearchMock).toHaveBeenCalledTimes(2);
     expect(markerProps.map((m) => m.title)).toContain("Shell");
     expect(markerProps.map((m) => m.title)).toContain("Tesla Supercharger");
+  });
+
+  it("shows no station markers when both searches return zero results", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
+      (success: any) => {
+        success({
+          coords: {
+            latitude: 40.25,
+            longitude: -111.65,
+          },
+        });
+      }
+    );
+
+    nearbySearchMock
+      .mockImplementationOnce((_request: any, callback: any) => {
+        callback([], "ZERO_RESULTS");
+      })
+      .mockImplementationOnce((_request: any, callback: any) => {
+        callback([], "ZERO_RESULTS");
+      });
+
+    render(<Map />);
+
+    await waitFor(() => {
+      expect(mockPanTo).toHaveBeenCalledWith({
+        lat: 40.25,
+        lng: -111.65,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("marker")).toHaveLength(1);
+    });
+
+    expect(screen.queryByText("Unable to load nearby stations.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Some nearby stations could not be loaded.")).not.toBeInTheDocument();
   });
 
   it("shows an error when location permission is denied", async () => {
