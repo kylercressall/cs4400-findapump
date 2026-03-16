@@ -1,5 +1,6 @@
 import { appendFileSync } from "fs";
 import { join } from "path";
+import { prisma } from "../prisma";
 
 export type StationKind = "gas" | "ev";
 
@@ -18,6 +19,71 @@ const LOG_PATH = join(process.cwd(), "google-maps-api.log");
 function log(label: string, data: unknown) {
   const entry = `[${new Date().toISOString()}] ${label}\n${JSON.stringify(data, null, 2)}\n\n`;
   appendFileSync(LOG_PATH, entry);
+}
+
+function parseVicinity(vicinity: string): { street: string; city: string } {
+  const commaIndex = vicinity.lastIndexOf(",");
+  if (commaIndex === -1) return { street: vicinity, city: "" };
+  return {
+    street: vicinity.slice(0, commaIndex).trim(),
+    city: vicinity.slice(commaIndex + 1).trim(),
+  };
+}
+
+async function upsertAllStations(stations: NearbyStation[]) {
+  // Upsert all unique brand names first (serially) to avoid race conditions
+  const uniqueNames = [...new Set(stations.map((s) => s.name).filter(Boolean))];
+  const brandMap = new Map<string, string>(); // name -> id
+  for (const name of uniqueNames) {
+    const brand = await prisma.stationBrand.upsert({
+      where: { brandName: name },
+      update: {},
+      create: { brandName: name },
+    });
+    brandMap.set(name, brand.id);
+  }
+
+  // Upsert each station now that brands are settled
+  let upserted = 0;
+  for (const station of stations) {
+    try {
+      const { street, city } = parseVicinity(station.vicinity);
+      const brandId = brandMap.get(station.name) ?? null;
+
+      const existing = await prisma.station.findUnique({
+        where: { placeId: station.place_id },
+      });
+
+      if (existing) {
+        await prisma.location.update({
+          where: { id: existing.locationId },
+          data: { lat: station.lat, long: station.lng, street, city },
+        });
+        if (brandId && !existing.stationBrandId) {
+          await prisma.station.update({
+            where: { id: existing.id },
+            data: { stationBrandId: brandId },
+          });
+        }
+      } else {
+        const location = await prisma.location.create({
+          data: { lat: station.lat, long: station.lng, street, city },
+        });
+        await prisma.station.create({
+          data: {
+            placeId: station.place_id,
+            kind: station.kind,
+            locationId: location.id,
+            stationBrandId: brandId,
+          },
+        });
+      }
+      upserted++;
+    } catch (err) {
+      console.error(`[Maps] Failed to upsert station ${station.place_id} (${station.name}):`, err);
+    }
+  }
+  console.log(`[Maps] Upserted ${upserted}/${stations.length} stations to DB`);
 }
 
 async function searchNearby(
@@ -62,6 +128,42 @@ async function searchNearby(
     }));
 }
 
+function dbStationsToNearby(stations: any[]): NearbyStation[] {
+  return stations
+    .filter((s) => s.location?.lat && s.location?.long)
+    .map((s) => ({
+      place_id: s.placeId ?? s.id,
+      name: s.stationBrand?.brandName ?? "Unknown",
+      kind: (s.kind as StationKind) ?? "gas",
+      lat: s.location.lat,
+      lng: s.location.long,
+      vicinity: [s.location.street, s.location.city].filter(Boolean).join(", "),
+    }));
+}
+
+export async function getCachedNearbyStations(
+  lat: number,
+  lng: number,
+  radius: number
+): Promise<NearbyStation[]> {
+  const radiusMiles = radius / 1609;
+  const latDelta = radiusMiles / 69;
+  const lonDelta = radiusMiles / (69 * Math.cos((lat * Math.PI) / 180));
+
+  const dbStations = await prisma.station.findMany({
+    where: {
+      location: {
+        lat: { gte: lat - latDelta, lte: lat + latDelta },
+        long: { gte: lng - lonDelta, lte: lng + lonDelta },
+      },
+    },
+    include: { location: true, stationBrand: true },
+  });
+
+  console.log(`[Maps] DB cache returned ${dbStations.length} stations`);
+  return dbStationsToNearby(dbStations);
+}
+
 export async function getNearbyStations(
   lat: number,
   lng: number,
@@ -74,5 +176,12 @@ export async function getNearbyStations(
 
   const gas = gasResults.status === "fulfilled" ? gasResults.value : [];
   const ev = evResults.status === "fulfilled" ? evResults.value : [];
-  return [...gas, ...ev];
+  const stations = [...gas, ...ev];
+
+  // Persist to DB in the background — don't await so the response isn't delayed
+  upsertAllStations(stations).catch((err) =>
+    console.error("[Maps] DB upsert failed:", err)
+  );
+
+  return stations;
 }

@@ -39,57 +39,61 @@ export default function Map() {
     []
   );
 
+  // Fire geolocation + API calls immediately on mount
   useEffect(() => {
-    if (!isLoaded || !map) {
-      return;
-    }
-
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by this browser.");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const loc = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
         setUserLocation(loc);
-        map.panTo(loc);
 
-        try {
-          const res = await fetch(
-            `http://localhost:3001/api/maps/nearby?lat=${loc.lat}&lng=${loc.lng}&radius=5000`
-          );
-          if (!res.ok) throw new Error("Failed to fetch nearby stations");
+        const base = `http://localhost:3001/api/maps/nearby`;
+        const params = `lat=${loc.lat}&lng=${loc.lng}&radius=5000`;
 
-          const data: Array<{
-            place_id: string;
-            name: string;
-            kind: StationKind;
-            lat: number;
-            lng: number;
-          }> = await res.json();
+        type ApiStation = { place_id: string; name: string; kind: StationKind; lat: number; lng: number };
+        const toStation = (s: ApiStation): Station => ({
+          id: `${s.kind}-${s.place_id}`,
+          name: s.name,
+          kind: s.kind,
+          position: { lat: s.lat, lng: s.lng },
+        });
 
-          setStations(
-            data.map((s) => ({
-              id: `${s.kind}-${s.place_id}`,
-              name: s.name,
-              kind: s.kind,
-              position: { lat: s.lat, lng: s.lng },
-            }))
-          );
-          setError(null);
-        } catch {
-          setError("Unable to load nearby stations.");
-        }
+        // Load cached DB stations immediately
+        fetch(`${base}/cached?${params}`)
+          .then((r) => r.ok ? r.json() : Promise.reject())
+          .then((data: ApiStation[]) => {
+            if (data.length > 0) setStations(data.map(toStation));
+          })
+          .catch(() => {});
+
+        // Load live Google Maps stations and replace
+        fetch(`${base}?${params}`)
+          .then((r) => r.ok ? r.json() : Promise.reject())
+          .then((data: ApiStation[]) => {
+            setStations(data.map(toStation));
+            setError(null);
+          })
+          .catch(() => setError("Unable to load nearby stations."));
       },
       () => {
         setError("Location permission denied. Showing the default area.");
       }
     );
-  }, [isLoaded, map]);
+  }, []);
+
+  // Pan to user location once the map is ready
+  useEffect(() => {
+    if (map && userLocation) {
+      map.panTo(userLocation);
+    }
+  }, [map, userLocation]);
 
   if (!isLoaded) {
     return (

@@ -38,7 +38,7 @@ model UserConfig {
 
 model StationBrand {
   id        String    @id @default(uuid()) @map("station_brand_id")
-  brandName String?   @map("brand_name")
+  brandName String    @unique @map("brand_name")
   logoUrl   String?   @map("logo_url")
   Station   Station[]
 
@@ -62,10 +62,12 @@ model Location {
 model Station {
   id             String        @id @default(uuid()) @map("station_id")
   locationId     String        @map("location_id")
-  stationBrandId String        @map("station_brand_id")
-  
+  stationBrandId String?       @map("station_brand_id")
+  placeId        String?       @unique @map("place_id")
+  kind           String?
+
   location       Location      @relation(fields: [locationId], references: [id])
-  stationBrand   StationBrand  @relation(fields: [stationBrandId], references: [id])
+  stationBrand   StationBrand? @relation(fields: [stationBrandId], references: [id])
   FuelPrice      FuelPrice[]
 
   @@map("Station")
