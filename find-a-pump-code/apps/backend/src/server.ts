@@ -1,5 +1,6 @@
+import { config } from "dotenv";
+config();
 import app from "./app";
-import "./env";
 
 const PORT = 3001;
 app.listen(PORT, () => {
