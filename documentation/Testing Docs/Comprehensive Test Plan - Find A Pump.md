@@ -339,6 +339,13 @@ Input: Open map page
 Expected Output: Legend contains Gas Station and EV Charging Station indicators  
 Test Type: Positive
 
+TEST ID: FN-BB-FE-010
+Priority: P1 (High)
+Description: Both nearby searches return zero results without error
+Input: Allow geolocation; mock gas and EV nearby searches to return ZERO_RESULTS
+Expected Output: User marker remains visible, no station markers are shown, and no nearby-stations error banner is displayed
+Test Type: Negative / edge case
+
 ================================================================================
 
 ### 3.6 END-TO-END SCENARIOS (BLACK-BOX)
@@ -635,6 +642,22 @@ Execution Path: `station.kind === 'ev' ? evIconUrl : gasIconUrl`
 Expected Internal State: correct icon selected by branch  
 Test Type: Branch Coverage
 
+TEST ID: FN-WB-MAP-009
+Priority: P1 (High)
+Description: `allSettled` both fulfilled with empty result sets
+Target Component: Map useEffect
+Execution Path: both nearby search promises resolve successfully with no stations
+Expected Internal State: station list remains empty, user location remains set, error state remains null
+Test Type: Path Coverage
+
+TEST ID: FN-WB-MAP-010
+Priority: P1 (High)
+Description: Marker render count matches resolved UI state
+Target Component: `Map` render output
+Execution Path: success, partial success, and zero-results paths
+Expected Internal State: marker count reflects `userLocation + resolved stations`; no phantom markers appear
+Test Type: State Consistency
+
 ================================================================================
 
 ### 4.5 INTEGRATION STATE CONSISTENCY (WHITE-BOX)
@@ -743,17 +766,20 @@ IMPLEMENTED AUTOMATION FILES:
 - `find-a-pump-code/apps/backend/tests/blackbox/api.routes.test.ts`
 - `find-a-pump-code/apps/backend/tests/whitebox/station.controller.test.ts`
 - `find-a-pump-code/apps/backend/tests/whitebox/station.service.test.ts`
+- `find-a-pump-code/apps/frontend/tests/map.test.tsx`
 
 RUN COMMANDS:
 1. `cd find-a-pump-code`
 2. `pnpm install`
 3. `pnpm test:backend`
 4. `pnpm test:backend:coverage`
+5. `pnpm --filter frontend test`
 
 CURRENT AUTOMATED COVERAGE SCOPE:
 - Functional black-box API routing tests (`FN-BB-*`)
 - Functional white-box controller tests (`FN-WB-SC-*`)
 - Functional white-box service tests (`FN-WB-SS-*`)
+- Frontend map component behavior with mocked Google Maps API, geolocation, and Places API callbacks
 
 EXECUTION ORDER:
 1. Controller unit tests
@@ -841,6 +867,7 @@ HOW TO APPLY NON-FUNCTIONAL TESTS:
 - Geolocation allow/deny simulations
 - Mock Places API responses:
   - gas + ev success
+  - gas + ev zero results
   - partial failure
   - total failure
 
