@@ -1,6 +1,5 @@
 "use client";
 
-
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
 
@@ -17,7 +16,6 @@ export default function Map() {
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
   });
 
   const [map, setMap] = useState<any>(null);
@@ -41,11 +39,8 @@ export default function Map() {
     []
   );
 
+  // Fire geolocation + API calls immediately on mount
   useEffect(() => {
-    if (!isLoaded || !map) {
-      return;
-    }
-
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by this browser.");
       return;
@@ -58,91 +53,47 @@ export default function Map() {
           lng: position.coords.longitude,
         };
         setUserLocation(loc);
-        map.panTo(loc);
 
-        const googleMaps = (window as any).google;
-        const service = new googleMaps.maps.places.PlacesService(map);
+        const base = `http://localhost:3001/api/maps/nearby`;
+        const params = `lat=${loc.lat}&lng=${loc.lng}&radius=5000`;
 
-        const nearbySearchByType = (
-          type: string,
-          kind: StationKind,
-          defaultName: string
-        ): Promise<Station[]> => {
-          return new Promise((resolve, reject) => {
-            service.nearbySearch(
-              {
-                location: loc,
-                radius: 5000,
-                type,
-              },
-              (results: any[], status: string) => {
-                if (status === googleMaps.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-                  resolve([]);
-                  return;
-                }
-
-                if (status !== googleMaps.maps.places.PlacesServiceStatus.OK) {
-                  reject(new Error(`Failed to load ${kind} stations`));
-                  return;
-                }
-
-                const mappedStations = (results || [])
-                  .map((place: any, index: number) => {
-                    const placeLocation = place.geometry?.location;
-                    if (!placeLocation) {
-                      return null;
-                    }
-
-                    return {
-                      id: `${kind}-${place.place_id || `${place.name}-${index}`}`,
-                      name: place.name || defaultName,
-                      kind,
-                      position: {
-                        lat: placeLocation.lat(),
-                        lng: placeLocation.lng(),
-                      },
-                    } as Station;
-                  })
-                  .filter(Boolean) as Station[];
-
-                resolve(mappedStations);
-              }
-            );
-          });
-        };
-
-        Promise.allSettled([
-          nearbySearchByType("gas_station", "gas", "Gas Station"),
-          nearbySearchByType(
-            "electric_vehicle_charging_station",
-            "ev",
-            "EV Charging Station"
-          ),
-        ]).then(([gasResult, evResult]) => {
-          const gasStations = gasResult.status === "fulfilled" ? gasResult.value : [];
-          const evStations = evResult.status === "fulfilled" ? evResult.value : [];
-          const allStations = [...gasStations, ...evStations];
-
-          setStations(allStations);
-
-          if (gasResult.status === "rejected" && evResult.status === "rejected") {
-            setError("Unable to load nearby stations.");
-            return;
-          }
-
-          if (gasResult.status === "rejected" || evResult.status === "rejected") {
-            setError("Some nearby stations could not be loaded.");
-            return;
-          }
-
-          setError(null);
+        type ApiStation = { place_id: string; name: string; kind: StationKind; lat: number; lng: number };
+        const toStation = (s: ApiStation): Station => ({
+          id: `${s.kind}-${s.place_id}`,
+          name: s.name,
+          kind: s.kind,
+          position: { lat: s.lat, lng: s.lng },
         });
+
+        // Load cached DB stations immediately
+        fetch(`${base}/cached?${params}`)
+          .then((r) => r.ok ? r.json() : Promise.reject())
+          .then((data: ApiStation[]) => {
+            if (data.length > 0) setStations(data.map(toStation));
+          })
+          .catch(() => {});
+
+        // Load live Google Maps stations and replace
+        fetch(`${base}?${params}`)
+          .then((r) => r.ok ? r.json() : Promise.reject())
+          .then((data: ApiStation[]) => {
+            setStations(data.map(toStation));
+            setError(null);
+          })
+          .catch(() => setError("Unable to load nearby stations."));
       },
       () => {
         setError("Location permission denied. Showing the default area.");
       }
     );
-  }, [isLoaded, map]);
+  }, []);
+
+  // Pan to user location once the map is ready
+  useEffect(() => {
+    if (map && userLocation) {
+      map.panTo(userLocation);
+    }
+  }, [map, userLocation]);
 
   if (!isLoaded) {
     return (
