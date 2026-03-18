@@ -27,7 +27,7 @@
     "vitest": "^2.1.9"
   },
   "scripts": {
-    "prisma:generate": "pnpm dlx prisma@6.19.2 generate --schema ./prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema ./prisma/schema.prisma",
     "dev": "pnpm run prisma:generate && ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "test": "vitest run",
