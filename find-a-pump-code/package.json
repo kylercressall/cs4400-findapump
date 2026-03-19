@@ -13,6 +13,9 @@
     "test:backend:coverage": "pnpm --filter backend test:coverage",
     "test:nf:load": "node testing/nonfunctional/load-smoke.mjs",
     "test:nf:reliability": "node testing/nonfunctional/reliability-soak.mjs",
+    "test:nf:scalability": "node testing/nonfunctional/scalability-test.mjs",
+    "test:nf:consistency": "node testing/nonfunctional/consistency-test.mjs",
+    "test:nf:availability": "node testing/nonfunctional/availability-test.mjs",
     "dev": "turbo run dev --parallel"
   },
   "keywords": [],
