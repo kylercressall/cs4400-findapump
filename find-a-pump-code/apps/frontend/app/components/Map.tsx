@@ -54,7 +54,7 @@ export default function Map() {
         };
         setUserLocation(loc);
 
-        const base = `http://localhost:3001/api/maps/nearby`;
+        const base = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/maps/nearby`;
         const params = `lat=${loc.lat}&lng=${loc.lng}&radius=5000`;
 
         type ApiStation = { place_id: string; name: string; kind: StationKind; lat: number; lng: number };
