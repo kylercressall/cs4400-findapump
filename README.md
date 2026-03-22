@@ -132,3 +132,39 @@ The backend uses structured separation:
 - `services/` – Contains business logic and database operations  
 
 This structure improves maintainability, scalability, and clarity.
+## Running Tests
+
+### Functional Tests (Backend)
+
+```bash
+cd find-a-pump-code
+pnpm test:backend
+pnpm test:backend:coverage
+```
+
+
+### Non-Functional Tests
+
+Start the backend first in one terminal:
+
+```bash
+cd find-a-pump-code
+pnpm run dev
+```
+
+Then in a second terminal:
+
+```bash
+cdfind-a-pump-code
+pnpmtest:nf:load
+pnpmtest:nf:reliability
+TEST_BASE_URL=http://localhost:4000pnpmtest:nf:scalability
+TEST_BASE_URL=http://localhost:4000pnpmtest:nf:consistency
+TEST_BASE_URL=http://localhost:4000pnpmtest:nf:availability
+```
+
+
+### Test Documentation
+
+* Comprehensive Test Plan: `documentation/Testing Docs/Comprehensive Test Plan - Find A Pump.md`
+* Automated Testing Guide: `documentation/Testing Docs/AUTOMATED_TESTING.md`
