@@ -6,19 +6,20 @@ A full-stack web application that allows users to locate nearby gas stations and
 
 **Find A Pump** is a monorepo-based full-stack application consisting of:
 
-- A Next.js frontend  
-- A Node.js + Express backend  
-- A SQLite database managed with Prisma ORM  
-- Turborepo for running frontend and backend concurrently  
+- A Next.js frontend
+- A Node.js + Express backend
+- A SQLite database managed with Prisma ORM
+- Turborepo for running frontend and backend concurrently
 
 The backend follows industry-standard architecture:
 
 Routes → Controllers → Services
 
 This separation ensures:
-- Routes define endpoints only  
-- Controllers handle validation and HTTP responses  
-- Services contain business logic and database operations  
+
+- Routes define endpoints only
+- Controllers handle validation and HTTP responses
+- Services contain business logic and database operations
 
 ## Repository Structure
 
@@ -74,15 +75,18 @@ pnpm install
 Create the following files:
 
 **apps/backend/.env**
+
 ```env
 DATABASE_URL="file:./dev.db"
 PORT=4000
 ```
 
 **apps/frontend/.env.local**
+
 ```env
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 ```
+
 Note: A valid Google Maps JavaScript API key is required for the map to render properly.
 
 ### 4. Initialize Database (First Time Only)
@@ -105,8 +109,8 @@ pnpm run dev
 
 This starts both applications:
 
-- Frontend: http://localhost:3000  
-- Backend: http://localhost:4000  
+- Frontend: http://localhost:3000
+- Backend: http://localhost:4000
 
 Restart the development server after modifying environment variables.
 
@@ -127,8 +131,45 @@ http://localhost:5555
 
 The backend uses structured separation:
 
-- `routes/` – Defines API endpoints  
-- `controllers/` – Handles validation and HTTP responses  
-- `services/` – Contains business logic and database operations  
+- `routes/` – Defines API endpoints
+- `controllers/` – Handles validation and HTTP responses
+- `services/` – Contains business logic and database operations
 
 This structure improves maintainability, scalability, and clarity.
+
+## Running Tests
+
+### Functional Tests (Backend)
+
+```bash
+cd find-a-pump-code
+pnpm test:backend
+pnpm test:backend:coverage
+```
+
+
+### Non-Functional Tests
+
+Start the backend first in one terminal:
+
+```bash
+cd find-a-pump-code
+pnpm run dev
+```
+
+Then in a second terminal:
+
+```bash
+cdfind-a-pump-code
+pnpmtest:nf:load
+pnpmtest:nf:reliability
+TEST_BASE_URL=http://localhost:4000pnpmtest:nf:scalability
+TEST_BASE_URL=http://localhost:4000pnpmtest:nf:consistency
+TEST_BASE_URL=http://localhost:4000pnpmtest:nf:availability
+```
+
+
+### Test Documentation
+
+* Comprehensive Test Plan: `documentation/Testing Docs/Comprehensive Test Plan - Find A Pump.md`
+* Automated Testing Guide: `documentation/Testing Docs/AUTOMATED_TESTING.md`
