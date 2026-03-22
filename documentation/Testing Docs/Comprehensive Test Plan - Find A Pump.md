@@ -836,6 +836,9 @@ IMPLEMENTED NON-FUNCTIONAL SCRIPTS:
 
 - `find-a-pump-code/testing/nonfunctional/load-smoke.mjs`
 - `find-a-pump-code/testing/nonfunctional/reliability-soak.mjs`
+- `find-a-pump-code/testing/nonfunctional/scalability-test.mjs`
+- `find-a-pump-code/testing/nonfunctional/consistency-test.mjs`
+- `find-a-pump-code/testing/nonfunctional/availability-test.mjs`
 
 NF TEST IDS (AUTOMATED):
 
@@ -843,15 +846,30 @@ NF TEST IDS (AUTOMATED):
 - TEST ID: NF-NF-REL-001
   Description: Reliability soak test over a timed interval
   Command: `pnpm test:nf:reliability`
+- TEST ID: NF-NF-SCALE-001
+  Description: Scalability test – verifies API response time does not degrade beyond 12x baseline when scaling from 1 to 50 concurrent requests
+  Command: `pnpm test:nf:scalability`
+- TEST ID: NF-NF-CONSIST-001
+  Description: Response consistency test – verifies API returns stable, predictable response sizes across 20 repeated requests
+  Command: `pnpm test:nf:consistency`
+- TEST ID: NF-NF-AVAIL-001
+  Description: Availability test – verifies API remains responsive under sustained traffic for 60 seconds at 200ms intervals
+  Command: `pnpm test:nf:availability`
 
 HOW TO APPLY NON-FUNCTIONAL TESTS:
 
-1. Start backend service (default expected base URL: `http://localhost:3001`).
+1. Start backend service (default expected base URL: `http://localhost:4000`).
 2. Run `cd find-a-pump-code`.
-3. Execute `pnpm test:nf:load` for quick latency/error baseline.
-4. Execute `pnpm test:nf:reliability` for time-based reliability.
-5. Tune thresholds with env vars:
-   - `TEST_BASE_URL`
+3. Execute any of the following:
+
+   * `pnpm test:nf:load` – quick latency/error baseline
+   * `pnpm test:nf:reliability` – time-based reliability
+   * `pnpm test:nf:scalability` – concurrent user scaling
+   * `pnpm test:nf:consistency` – response data stability
+   * `pnpm test:nf:availability` – sustained uptime and latency
+4. Tune thresholds with env vars:
+
+   - `TEST_BASE_URL` (default: `http://localhost:4000`)
    - `TEST_ENDPOINT`
    - `NF_MAX_P95_MS`
    - `NF_MAX_ERROR_RATE`
