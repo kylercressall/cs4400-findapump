@@ -1,17 +1,46 @@
 "use client";
 
-
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
 
 type LatLng = { lat: number; lng: number };
 type StationKind = "gas" | "ev";
-type Station = { id: string; name: string; position: LatLng; kind: StationKind };
+
+type FuelPriceEntry = {
+  type: string;
+  units: number;
+  nanos: number;
+  updateTime?: string;
+};
+
+type Station = {
+  id: string;
+  name: string;
+  position: LatLng;
+  kind: StationKind;
+  placeId?: string;
+  fuelPrices?: FuelPriceEntry[];
+};
 
 const fallbackCenter: LatLng = {
   lat: 40.2338,
   lng: -111.6585,
 };
+
+function priceToNumber(units?: number, nanos?: number) {
+  return (units || 0) + (nanos || 0) / 1_000_000_000;
+}
+
+function formatFuelPrices(fuelPrices?: FuelPriceEntry[]) {
+  if (!fuelPrices || fuelPrices.length === 0) return "No fuel prices available";
+
+  return fuelPrices
+    .map((fuel) => {
+      const price = priceToNumber(fuel.units, fuel.nanos).toFixed(3);
+      return `${fuel.type}: $${price}`;
+    })
+    .join(" | ");
+}
 
 export default function Map() {
   const { isLoaded } = useJsApiLoader({
@@ -40,6 +69,40 @@ export default function Map() {
     () => "https://maps.gstatic.com/mapfiles/ms2/micons/blue-dot.png",
     []
   );
+
+  async function fetchFuelOptions(placeId: string): Promise<FuelPriceEntry[]> {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Missing Google Maps API key");
+    }
+
+    const response = await fetch(
+      `https://places.googleapis.com/v1/places/${placeId}`,
+      {
+        method: "GET",
+        headers: {
+          "X-Goog-Api-Key": apiKey,
+          "X-Goog-FieldMask": "id,displayName,fuelOptions",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Fuel details request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    const prices = data?.fuelOptions?.fuelPrices ?? [];
+
+    return prices.map((fuel: any) => ({
+      type: fuel.type ?? "UNKNOWN",
+      units: Number(fuel.price?.units ?? 0),
+      nanos: Number(fuel.price?.nanos ?? 0),
+      updateTime: fuel.updateTime,
+    }));
+  }
 
   useEffect(() => {
     if (!isLoaded || !map) {
@@ -95,6 +158,7 @@ export default function Map() {
 
                     return {
                       id: `${kind}-${place.place_id || `${place.name}-${index}`}`,
+                      placeId: place.place_id,
                       name: place.name || defaultName,
                       kind,
                       position: {
@@ -118,11 +182,25 @@ export default function Map() {
             "ev",
             "EV Charging Station"
           ),
-        ]).then(([gasResult, evResult]) => {
+        ]).then(async ([gasResult, evResult]) => {
           const gasStations = gasResult.status === "fulfilled" ? gasResult.value : [];
           const evStations = evResult.status === "fulfilled" ? evResult.value : [];
-          const allStations = [...gasStations, ...evStations];
 
+          const enrichedGasStations = await Promise.all(
+            gasStations.map(async (station) => {
+              if (!station.placeId) return station;
+
+              try {
+                const fuelPrices = await fetchFuelOptions(station.placeId);
+                return { ...station, fuelPrices };
+              } catch (err) {
+                console.error(`Could not load fuel prices for ${station.name}`, err);
+                return station;
+              }
+            })
+          );
+
+          const allStations = [...enrichedGasStations, ...evStations];
           setStations(allStations);
 
           if (gasResult.status === "rejected" && evResult.status === "rejected") {
@@ -160,18 +238,22 @@ export default function Map() {
         zoom={userLocation ? 13 : 11}
         onLoad={setMap}
       >
-        {userLocation && (
-          <Marker position={userLocation} icon={userIconUrl} />
-        )}
+        {userLocation && <Marker position={userLocation} icon={userIconUrl} />}
+
         {stations.map((station) => (
           <Marker
             key={station.id}
             position={station.position}
-            title={station.name}
+            title={
+              station.kind === "gas"
+                ? `${station.name} - ${formatFuelPrices(station.fuelPrices)}`
+                : station.name
+            }
             icon={station.kind === "ev" ? evIconUrl : gasIconUrl}
           />
         ))}
       </GoogleMap>
+
       <div className="absolute right-4 top-4 rounded bg-white/90 px-3 py-2 text-sm text-black shadow">
         <div className="mb-1 font-semibold">Legend</div>
         <div className="flex items-center gap-2">
@@ -183,6 +265,7 @@ export default function Map() {
           <span>EV Charging Station</span>
         </div>
       </div>
+
       {error && (
         <div className="absolute left-4 top-4 rounded bg-white/90 px-3 py-2 text-sm shadow">
           {error}
