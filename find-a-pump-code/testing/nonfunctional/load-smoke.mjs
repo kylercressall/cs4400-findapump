@@ -1,4 +1,4 @@
-const baseUrl = process.env.TEST_BASE_URL || "http://localhost:3001";
+const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4000";
 const endpoint = process.env.TEST_ENDPOINT || "/api/stations";
 const requests = Number(process.env.NF_REQUESTS || 100);
 const concurrency = Number(process.env.NF_CONCURRENCY || 10);

@@ -6,9 +6,35 @@ import mapsRoutes from "./routes/maps.routes";
 
 const app = express();
 
+const configuredOrigins = (process.env.FRONTEND_ORIGIN ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const allowedOrigins = new Set<string>([
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  ...configuredOrigins,
+]);
+
+// Allow common RFC1918 LAN origins so frontend can be opened from other devices in development.
+const privateNetworkOriginPattern =
+  /^http:\/\/(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?::\d{1,5})?$/;
+
+function isAllowedOrigin(origin?: string) {
+  if (!origin) return true;
+  return allowedOrigins.has(origin) || privateNetworkOriginPattern.test(origin);
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN || "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("CORS: Origin not allowed"));
+    },
     credentials: true,
   })
 );

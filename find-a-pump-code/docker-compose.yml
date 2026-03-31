@@ -4,10 +4,12 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile.dev
     ports:
-      - "3001:3001"
+      - "4000:4000"
     environment:
       NODE_ENV: development
       DATABASE_URL: file:./dev.db
+      PORT: "4000"
+      FRONTEND_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
       CHOKIDAR_USEPOLLING: "1"
     volumes:
       - .:/app

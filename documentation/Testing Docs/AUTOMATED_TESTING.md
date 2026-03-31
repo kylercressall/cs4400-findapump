@@ -29,7 +29,7 @@ Implemented test files:
 
 ## 3) Non-functional automated tests
 
-Start backend first (default expected: `http://localhost:3001`).
+Start backend first (default expected: `http://localhost:4000`).
 
 ### NF-NF-LOAD-001 (load smoke)
 
@@ -63,7 +63,7 @@ TEST_BASE_URL=http://localhost:4000 pnpm test:nf:availability
 
 ## 4) Environment variables for non-functional tuning
 
-- `TEST_BASE_URL` (default: `http://localhost:3001`)
+- `TEST_BASE_URL` (default: `http://localhost:4000`)
 - `TEST_ENDPOINT` (default endpoint differs by script)
 - `NF_MAX_P95_MS` (default: `700`)
 - `NF_MAX_ERROR_RATE` (default: `0.05` for load, `0.03` for soak, `0.01` for availability)
@@ -78,7 +78,7 @@ TEST_BASE_URL=http://localhost:4000 pnpm test:nf:availability
 Example custom run:
 
 ```bash
-$env:TEST_BASE_URL="http://localhost:3001"
+$env:TEST_BASE_URL="http://localhost:4000"
 $env:TEST_ENDPOINT="/api/stations"
 $env:NF_MAX_P95_MS="500"
 pnpm test:nf:load

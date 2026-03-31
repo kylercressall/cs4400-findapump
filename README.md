@@ -77,6 +77,7 @@ Create the following files:
 ```env
 DATABASE_URL="file:./dev.db"
 PORT=4000
+FRONTEND_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 **apps/frontend/.env.local**
@@ -109,6 +110,25 @@ This starts both applications:
 - Backend: http://localhost:4000  
 
 Restart the development server after modifying environment variables.
+
+### Docker (Dev)
+
+From `find-a-pump-code`:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- Frontend: http://localhost:3000
+- Backend: http://localhost:4000
+
+For access from other devices on the same network, open the frontend using your host machine LAN IP, for example:
+
+http://192.168.1.50:3000
+
+The backend CORS configuration allows localhost and private network origins for development.
 
 ## Viewing the Database (Optional)
 
@@ -155,12 +175,12 @@ pnpm run dev
 Then in a second terminal:
 
 ```bash
-cdfind-a-pump-code
-pnpmtest:nf:load
-pnpmtest:nf:reliability
-TEST_BASE_URL=http://localhost:4000pnpmtest:nf:scalability
-TEST_BASE_URL=http://localhost:4000pnpmtest:nf:consistency
-TEST_BASE_URL=http://localhost:4000pnpmtest:nf:availability
+cd find-a-pump-code
+pnpm test:nf:load
+pnpm test:nf:reliability
+TEST_BASE_URL=http://localhost:4000 pnpm test:nf:scalability
+TEST_BASE_URL=http://localhost:4000 pnpm test:nf:consistency
+TEST_BASE_URL=http://localhost:4000 pnpm test:nf:availability
 ```
 
 

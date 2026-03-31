@@ -71,7 +71,7 @@ Test Type: Negative
 TEST ID: FN-BB-ROOT-003
 Priority: P1 (High)
 Description: CORS allows frontend origin
-Input: Browser request from `http://localhost:3000`
+Input: Browser request from `http://localhost:3000` or a private-network frontend origin (example: `http://192.168.1.50:3000`)
 Expected Output: Request succeeds with expected CORS headers
 Test Type: Positive
 

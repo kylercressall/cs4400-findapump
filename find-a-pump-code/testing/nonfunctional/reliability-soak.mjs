@@ -1,4 +1,4 @@
-const baseUrl = process.env.TEST_BASE_URL || "http://localhost:3001";
+const baseUrl = process.env.TEST_BASE_URL || "http://localhost:4000";
 const endpoint = process.env.TEST_ENDPOINT || "/api/stations/nearby?latitude=40.2338&longitude=-111.6585&radius=10";
 const durationSec = Number(process.env.NF_DURATION_SEC || 60);
 const intervalMs = Number(process.env.NF_INTERVAL_MS || 250);
