@@ -2,6 +2,8 @@
 
 A full-stack web application that allows users to locate nearby gas stations and compare fuel prices through an interactive map interface.
 
+Current frontend map experience includes a collapsible left station panel with nearby stations, distance, ETA, and price-based sorting.
+
 ## Project Overview
 
 **Find A Pump** is a monorepo-based full-stack application consisting of:
@@ -160,6 +162,13 @@ This structure improves maintainability, scalability, and clarity.
 cd find-a-pump-code
 pnpm test:backend
 pnpm test:backend:coverage
+```
+
+### Functional Tests (Frontend)
+
+```bash
+cd find-a-pump-code
+pnpm --filter frontend test
 ```
 
 

@@ -26,6 +26,7 @@ Implemented test files:
 - `apps/backend/tests/blackbox/api.routes.test.ts`
 - `apps/backend/tests/whitebox/station.controller.test.ts`
 - `apps/backend/tests/whitebox/station.service.test.ts`
+- `apps/frontend/tests/map.test.tsx` (map + collapsible station panel behavior)
 
 ## 3) Non-functional automated tests
 
