@@ -176,37 +176,15 @@ export default function Map() {
   }, [kindFilter, sortBy, stations, userLocation]);
 
   async function fetchFuelOptions(placeId: string): Promise<FuelPriceEntry[]> {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-    if (!apiKey) {
-      throw new Error("Missing Google Maps API key");
-    }
-
     const response = await fetch(
-      `https://places.googleapis.com/v1/places/${placeId}`,
-      {
-        method: "GET",
-        headers: {
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask": "id,displayName,fuelOptions",
-        },
-      }
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/prices/fuel?placeId=${placeId}`
     );
 
     if (!response.ok) {
       throw new Error(`Fuel details request failed: ${response.status}`);
     }
 
-    const data = await response.json();
-
-    const prices = data?.fuelOptions?.fuelPrices ?? [];
-
-    return prices.map((fuel: any) => ({
-      type: fuel.type ?? "UNKNOWN",
-      units: Number(fuel.price?.units ?? 0),
-      nanos: Number(fuel.price?.nanos ?? 0),
-      updateTime: fuel.updateTime,
-    }));
+    return response.json();
   }
 
   useEffect(() => {

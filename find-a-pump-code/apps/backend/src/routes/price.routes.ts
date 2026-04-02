@@ -6,4 +6,6 @@ const router = Router();
 // GET all current prices
 router.get("/", priceController.getAllPrices);
 
+router.get("/fuel", priceController.getFuelPricesByPlaceId)
+
 export default router;
