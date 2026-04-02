@@ -4,6 +4,13 @@ import { prisma } from "../prisma";
 
 export type StationKind = "gas" | "ev";
 
+export interface FuelPriceEntry {
+  type: string;
+  units: number;
+  nanos: number;
+  updateTime?: string;
+}
+
 export interface NearbyStation {
   place_id: string;
   name: string;
@@ -11,6 +18,7 @@ export interface NearbyStation {
   lat: number;
   lng: number;
   vicinity: string;
+  fuelPrices?: FuelPriceEntry[];
 }
 
 const PLACES_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
@@ -131,14 +139,29 @@ async function searchNearby(
 function dbStationsToNearby(stations: any[]): NearbyStation[] {
   return stations
     .filter((s) => s.location?.lat && s.location?.long)
-    .map((s) => ({
-      place_id: s.placeId ?? s.id,
-      name: s.stationBrand?.brandName ?? "Unknown",
-      kind: (s.kind as StationKind) ?? "gas",
-      lat: s.location.lat,
-      lng: s.location.long,
-      vicinity: [s.location.street, s.location.city].filter(Boolean).join(", "),
-    }));
+    .map((s) => {
+      const fuelPrices: FuelPriceEntry[] = (s.FuelPrice ?? []).map((fp: any) => {
+        const price = fp.fuelPrice ?? 0;
+        const units = Math.floor(price);
+        const nanos = Math.round((price - units) * 1_000_000_000);
+        return {
+          type: fp.fuelType?.name ?? "UNKNOWN",
+          units,
+          nanos,
+          updateTime: fp.createdAt?.toISOString(),
+        };
+      });
+
+      return {
+        place_id: s.placeId ?? "",
+        name: s.stationBrand?.brandName ?? "Unknown",
+        kind: (s.kind as StationKind) ?? "gas",
+        lat: s.location.lat,
+        lng: s.location.long,
+        vicinity: [s.location.street, s.location.city].filter(Boolean).join(", "),
+        fuelPrices: fuelPrices.length > 0 ? fuelPrices : undefined,
+      };
+    });
 }
 
 export async function getCachedNearbyStations(
@@ -157,7 +180,11 @@ export async function getCachedNearbyStations(
         long: { gte: lng - lonDelta, lte: lng + lonDelta },
       },
     },
-    include: { location: true, stationBrand: true },
+    include: {
+      location: true,
+      stationBrand: true,
+      FuelPrice: { include: { fuelType: true } },
+    },
   });
 
   console.log(`[Maps] DB cache returned ${dbStations.length} stations`);

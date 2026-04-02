@@ -3,6 +3,8 @@
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
 
+const GOOGLE_MAPS_LIBRARIES: [] = [];
+
 type LatLng = { lat: number; lng: number };
 type StationKind = "gas" | "ev";
 type SortOption = "cheapest" | "closest" | "fastest";
@@ -101,7 +103,7 @@ export default function Map() {
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const [map, setMap] = useState<any>(null);
@@ -130,9 +132,7 @@ export default function Map() {
   );
 
   const stationRows = useMemo<StationRow[]>(() => {
-    if (!userLocation) {
-      return [];
-    }
+    const center = userLocation ?? fallbackCenter;
 
     const filteredStations =
       kindFilter === "all"
@@ -140,7 +140,7 @@ export default function Map() {
         : stations.filter((station) => station.kind === kindFilter);
 
     const computedRows = filteredStations.map((station) => {
-      const distanceMiles = getDistanceMiles(userLocation, station.position);
+      const distanceMiles = getDistanceMiles(center, station.position);
       const etaMinutes = estimateEtaMinutes(distanceMiles);
       const lowestPrice = getLowestFuelPrice(station.fuelPrices);
 
@@ -192,13 +192,74 @@ export default function Map() {
       return;
     }
 
+    async function loadStations(loc: LatLng) {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const nearbyParams = `lat=${loc.lat}&lng=${loc.lng}&radius=5000`;
+
+      // Refresh DB cache in background
+      fetch(`${backendUrl}/api/maps/nearby?${nearbyParams}`).catch((err) =>
+        console.error("Background station refresh failed:", err)
+      );
+
+      const nearbyRes = await fetch(
+        `${backendUrl}/api/maps/nearby/cached?${nearbyParams}`
+      );
+
+      if (!nearbyRes.ok) {
+        setError("Unable to load nearby stations.");
+        return;
+      }
+
+      const nearbyData: {
+        place_id: string;
+        name: string;
+        kind: StationKind;
+        lat: number;
+        lng: number;
+        vicinity: string;
+        fuelPrices?: FuelPriceEntry[];
+      }[] = await nearbyRes.json();
+
+      const mappedStations: Station[] = nearbyData.map((s) => ({
+        id: s.place_id || `${s.lat}-${s.lng}`,
+        placeId: s.place_id || undefined,
+        name: s.name,
+        kind: s.kind,
+        address: s.vicinity,
+        position: { lat: s.lat, lng: s.lng },
+        fuelPrices: s.fuelPrices,
+      }));
+
+      setStations(mappedStations);
+      if (mappedStations.length > 0) {
+        setSelectedStationId(mappedStations[0].id);
+      }
+      setError(null);
+
+      // Only fetch prices for gas stations that didn't get them from the cache
+      mappedStations
+        .filter((s) => s.kind === "gas" && s.placeId && !s.fuelPrices)
+        .forEach(async (station) => {
+          try {
+            const fuelPrices = await fetchFuelOptions(station.placeId!);
+            setStations((prev) =>
+              prev.map((s) => (s.id === station.id ? { ...s, fuelPrices } : s))
+            );
+          } catch (err) {
+            console.error(`Could not load fuel prices for ${station.name}`, err);
+          }
+        });
+    }
+
+    // Load fallback area immediately — don't wait for geolocation
+    loadStations(fallbackCenter);
+
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by this browser.");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const loc = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -206,107 +267,8 @@ export default function Map() {
         setUserLocation(loc);
         map.panTo(loc);
 
-        const googleMaps = (window as any).google;
-        const service = new googleMaps.maps.places.PlacesService(map);
-
-        const nearbySearchByType = (
-          type: string,
-          kind: StationKind,
-          defaultName: string
-        ): Promise<Station[]> => {
-          return new Promise((resolve, reject) => {
-            service.nearbySearch(
-              {
-                location: loc,
-                radius: 5000,
-                type,
-              },
-              (results: any[], status: string) => {
-                if (status === googleMaps.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-                  resolve([]);
-                  return;
-                }
-
-                if (status !== googleMaps.maps.places.PlacesServiceStatus.OK) {
-                  reject(new Error(`Failed to load ${kind} stations`));
-                  return;
-                }
-
-                const mappedStations = (results || [])
-                  .map((place: any, index: number) => {
-                    const placeLocation = place.geometry?.location;
-                    if (!placeLocation) {
-                      return null;
-                    }
-
-                    return {
-                      id: `${kind}-${place.place_id || `${place.name}-${index}`}`,
-                      placeId: place.place_id,
-                      name: place.name || defaultName,
-                      kind,
-                      address: place.vicinity || place.formatted_address,
-                      rating: typeof place.rating === "number" ? place.rating : undefined,
-                      totalRatings:
-                        typeof place.user_ratings_total === "number"
-                          ? place.user_ratings_total
-                          : undefined,
-                      position: {
-                        lat: placeLocation.lat(),
-                        lng: placeLocation.lng(),
-                      },
-                    } as Station;
-                  })
-                  .filter(Boolean) as Station[];
-
-                resolve(mappedStations);
-              }
-            );
-          });
-        };
-
-        Promise.allSettled([
-          nearbySearchByType("gas_station", "gas", "Gas Station"),
-          nearbySearchByType(
-            "electric_vehicle_charging_station",
-            "ev",
-            "EV Charging Station"
-          ),
-        ]).then(async ([gasResult, evResult]) => {
-          const gasStations = gasResult.status === "fulfilled" ? gasResult.value : [];
-          const evStations = evResult.status === "fulfilled" ? evResult.value : [];
-
-          const enrichedGasStations = await Promise.all(
-            gasStations.map(async (station) => {
-              if (!station.placeId) return station;
-
-              try {
-                const fuelPrices = await fetchFuelOptions(station.placeId);
-                return { ...station, fuelPrices };
-              } catch (err) {
-                console.error(`Could not load fuel prices for ${station.name}`, err);
-                return station;
-              }
-            })
-          );
-
-          const allStations = [...enrichedGasStations, ...evStations];
-          setStations(allStations);
-          if (allStations.length > 0) {
-            setSelectedStationId(allStations[0].id);
-          }
-
-          if (gasResult.status === "rejected" && evResult.status === "rejected") {
-            setError("Unable to load nearby stations.");
-            return;
-          }
-
-          if (gasResult.status === "rejected" || evResult.status === "rejected") {
-            setError("Some nearby stations could not be loaded.");
-            return;
-          }
-
-          setError(null);
-        });
+        // Re-fetch for actual user location
+        loadStations(loc);
       },
       () => {
         setError("Location permission denied. Showing the default area.");
