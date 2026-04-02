@@ -136,21 +136,30 @@ async function searchNearby(
     }));
 }
 
+const PRICE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 function dbStationsToNearby(stations: any[]): NearbyStation[] {
+  const now = Date.now();
+
   return stations
     .filter((s) => s.location?.lat && s.location?.long)
     .map((s) => {
-      const fuelPrices: FuelPriceEntry[] = (s.FuelPrice ?? []).map((fp: any) => {
-        const price = fp.fuelPrice ?? 0;
-        const units = Math.floor(price);
-        const nanos = Math.round((price - units) * 1_000_000_000);
-        return {
-          type: fp.fuelType?.name ?? "UNKNOWN",
-          units,
-          nanos,
-          updateTime: fp.createdAt?.toISOString(),
-        };
-      });
+      const freshPrices: FuelPriceEntry[] = (s.FuelPrice ?? [])
+        .filter((fp: any) => {
+          if (!fp.createdAt) return false;
+          return now - new Date(fp.createdAt).getTime() < PRICE_MAX_AGE_MS;
+        })
+        .map((fp: any) => {
+          const price = fp.fuelPrice ?? 0;
+          const units = Math.floor(price);
+          const nanos = Math.round((price - units) * 1_000_000_000);
+          return {
+            type: fp.fuelType?.name ?? "UNKNOWN",
+            units,
+            nanos,
+            updateTime: fp.createdAt?.toISOString(),
+          };
+        });
 
       return {
         place_id: s.placeId ?? "",
@@ -159,7 +168,7 @@ function dbStationsToNearby(stations: any[]): NearbyStation[] {
         lat: s.location.lat,
         lng: s.location.long,
         vicinity: [s.location.street, s.location.city].filter(Boolean).join(", "),
-        fuelPrices: fuelPrices.length > 0 ? fuelPrices : undefined,
+        fuelPrices: freshPrices.length > 0 ? freshPrices : undefined,
       };
     });
 }

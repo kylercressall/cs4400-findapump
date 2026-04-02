@@ -23,9 +23,6 @@ type Station = {
   kind: StationKind;
   placeId?: string;
   address?: string;
-  rating?: number;
-  totalRatings?: number;
-  openNow?: boolean;
   fuelPrices?: FuelPriceEntry[];
 };
 
@@ -421,9 +418,6 @@ export default function Map() {
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-black/75">
                         <span>{row.distanceMiles.toFixed(1)} mi</span>
                         <span>{row.etaMinutes} min</span>
-                        {typeof row.station.openNow === "boolean" && (
-                          <span>{row.station.openNow ? "Open now" : "Closed"}</span>
-                        )}
                       </div>
 
                       {row.station.address && (
@@ -455,18 +449,6 @@ export default function Map() {
                     <div className="rounded bg-white p-2">
                       <div className="text-[11px] text-black/60">Best Price</div>
                       <div className="font-semibold">{selectedStationRow.lowestPriceLabel}</div>
-                    </div>
-                    <div className="rounded bg-white p-2">
-                      <div className="text-[11px] text-black/60">Rating</div>
-                      <div className="font-semibold">
-                        {typeof selectedStationRow.station.rating === "number"
-                          ? `${selectedStationRow.station.rating.toFixed(1)}${
-                              selectedStationRow.station.totalRatings
-                                ? ` (${selectedStationRow.station.totalRatings})`
-                                : ""
-                            }`
-                          : "N/A"}
-                      </div>
                     </div>
                   </div>
 
