@@ -272,10 +272,6 @@ export default function Map() {
                         typeof place.user_ratings_total === "number"
                           ? place.user_ratings_total
                           : undefined,
-                      openNow:
-                        typeof place.opening_hours?.open_now === "boolean"
-                          ? place.opening_hours.open_now
-                          : undefined,
                       position: {
                         lat: placeLocation.lat(),
                         lng: placeLocation.lng(),
