@@ -112,7 +112,7 @@ export default function Map() {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+  
   const gasIconUrl = useMemo(
     () => "https://maps.gstatic.com/mapfiles/ms2/micons/gas.png",
     []
