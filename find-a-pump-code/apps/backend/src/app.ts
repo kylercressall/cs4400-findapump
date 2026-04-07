@@ -13,6 +13,7 @@ const configuredOrigins = (process.env.FRONTEND_ORIGIN ?? "")
 
 const allowedOrigins = new Set<string>([
   "http://localhost:3000",
+  "http://localhost:3001",
   "http://127.0.0.1:3000",
   ...configuredOrigins,
 ]);
