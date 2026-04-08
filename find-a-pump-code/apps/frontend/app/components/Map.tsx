@@ -324,16 +324,16 @@ export default function Map() {
 
       <div
         data-testid="station-panel"
-        className={`absolute left-0 top-0 z-20 h-full bg-white/95 text-black shadow-xl transition-all duration-300 ${
-          isPanelCollapsed ? "w-14" : "w-[min(22rem,85vw)]"
+        className={`absolute left-0 top-0 z-20 h-full border-r border-stone-200/80 bg-stone-50/95 text-stone-900 shadow-2xl backdrop-blur-sm transition-all duration-300 ${
+          isPanelCollapsed ? "w-16" : "w-[min(22rem,84vw)]"
         }`}
       >
         <div className="flex h-full flex-col">
-          <div className="border-b border-black/10 px-3 py-3">
+          <div className="border-b border-stone-200 px-3 py-3">
             <button
               type="button"
               onClick={() => setIsPanelCollapsed((prev) => !prev)}
-              className="rounded border border-black/20 bg-white px-2 py-1 text-xs font-semibold hover:bg-black/5"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-300 bg-white text-sm font-semibold text-stone-700 shadow-sm transition hover:border-[#275038]/25 hover:bg-[#275038]/5 hover:text-[#275038]"
               aria-label={isPanelCollapsed ? "Expand station panel" : "Collapse station panel"}
             >
               {isPanelCollapsed ? "»" : "«"}
@@ -342,17 +342,21 @@ export default function Map() {
             {!isPanelCollapsed && (
               <div className="mt-3 space-y-3">
                 <div>
-                  <h2 className="text-base font-bold">Nearby Stations</h2>
-                  <p className="text-xs text-black/70">Compare price, distance, and ETA</p>
+                  <h2 className="text-base font-bold tracking-tight text-stone-900">
+                    Nearby Stations
+                  </h2>
+                  <p className="mt-0.5 text-xs text-stone-500">
+                    Compare price, distance, and ETA
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <label className="flex flex-col gap-1">
-                    <span className="font-semibold text-black/70">Sort</span>
+                    <span className="font-medium text-stone-600">Sort</span>
                     <select
                       value={sortBy}
                       onChange={(event) => setSortBy(event.target.value as SortOption)}
-                      className="rounded border border-black/20 bg-white px-2 py-1"
+                      className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-stone-800 shadow-sm outline-none transition focus:border-[#275038]/40 focus:ring-2 focus:ring-[#275038]/10"
                     >
                       <option value="cheapest">Cheapest</option>
                       <option value="closest">Closest</option>
@@ -361,13 +365,13 @@ export default function Map() {
                   </label>
 
                   <label className="flex flex-col gap-1">
-                    <span className="font-semibold text-black/70">Type</span>
+                    <span className="font-medium text-stone-600">Type</span>
                     <select
                       value={kindFilter}
                       onChange={(event) =>
                         setKindFilter(event.target.value as "all" | StationKind)
                       }
-                      className="rounded border border-black/20 bg-white px-2 py-1"
+                      className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-stone-800 shadow-sm outline-none transition focus:border-[#275038]/40 focus:ring-2 focus:ring-[#275038]/10"
                     >
                       <option value="all">All</option>
                       <option value="gas">Gas</option>
@@ -381,9 +385,9 @@ export default function Map() {
 
           {!isPanelCollapsed && (
             <>
-              <div className="max-h-[56%] flex-1 space-y-2 overflow-y-auto p-3">
+              <div className="flex-1 space-y-2 overflow-y-auto px-3 py-3">
                 {stationRows.length === 0 && (
-                  <div className="rounded border border-dashed border-black/20 bg-black/[0.03] p-3 text-sm text-black/70">
+                  <div className="rounded-xl border border-dashed border-stone-300 bg-stone-100/70 p-3 text-sm text-stone-500">
                     No stations to show yet.
                   </div>
                 )}
@@ -397,31 +401,46 @@ export default function Map() {
                       data-testid="station-row"
                       type="button"
                       onClick={() => focusStation(row.station.id)}
-                      className={`w-full rounded-lg border p-3 text-left transition ${
+                      className={`w-full rounded-xl border p-3 text-left shadow-sm transition ${
                         isSelected
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-black/15 bg-white hover:bg-black/[0.03]"
+                          ? "border-[#275038]/30 bg-[#275038]/[0.08] ring-1 ring-[#275038]/15"
+                          : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold leading-tight">{row.station.name}</div>
-                          <div className="mt-1 text-xs text-black/65">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-stone-900">
+                            {row.station.name}
+                          </div>
+                          <div className="mt-0.5 text-[11px] font-medium text-stone-500">
                             {row.station.kind === "gas" ? "Gas station" : "EV charging"}
                           </div>
                         </div>
-                        <div className="rounded bg-black px-2 py-1 text-xs font-semibold text-white">
+
+                        <div
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            isSelected
+                              ? "bg-[#275038] text-white"
+                              : "border border-[#275038]/25 bg-[#275038]/10 text-[#275038]"
+                          }`}
+                        >
                           {row.lowestPriceLabel}
                         </div>
                       </div>
 
-                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-black/75">
-                        <span>{row.distanceMiles.toFixed(1)} mi</span>
-                        <span>{row.etaMinutes} min</span>
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-stone-600">
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5">
+                          {row.distanceMiles.toFixed(1)} mi
+                        </span>
+                        <span className="rounded-full bg-stone-100 px-2 py-0.5">
+                          {row.etaMinutes} min
+                        </span>
                       </div>
 
                       {row.station.address && (
-                        <div className="mt-2 text-xs text-black/65">{row.station.address}</div>
+                        <div className="mt-2 line-clamp-1 text-[11px] text-stone-500">
+                          {row.station.address}
+                        </div>
                       )}
                     </button>
                   );
@@ -429,33 +448,49 @@ export default function Map() {
               </div>
 
               {selectedStationRow && (
-                <div className="border-t border-black/10 bg-black/[0.03] p-3 text-xs">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-black/60">
+                <div className="border-t border-[#275038]/10 bg-[#275038]/[0.045] px-3 py-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
                     Selected Station
                   </div>
-                  <div className="mt-1 text-sm font-bold">{selectedStationRow.station.name}</div>
+                  <div className="mt-1 text-sm font-bold text-stone-900">
+                    {selectedStationRow.station.name}
+                  </div>
 
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div className="rounded bg-white p-2">
-                      <div className="text-[11px] text-black/60">Distance</div>
-                      <div className="font-semibold">
-                        {selectedStationRow.distanceMiles.toFixed(2)} miles
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="rounded-xl bg-white p-2 shadow-sm ring-1 ring-[#275038]/10">
+                      <div className="text-[10px] uppercase tracking-wide text-stone-500">
+                        Distance
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-stone-900">
+                        {selectedStationRow.distanceMiles.toFixed(2)} mi
                       </div>
                     </div>
-                    <div className="rounded bg-white p-2">
-                      <div className="text-[11px] text-black/60">ETA</div>
-                      <div className="font-semibold">{selectedStationRow.etaMinutes} min</div>
+
+                    <div className="rounded-xl bg-white p-2 shadow-sm ring-1 ring-[#275038]/10">
+                      <div className="text-[10px] uppercase tracking-wide text-stone-500">
+                        ETA
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-stone-900">
+                        {selectedStationRow.etaMinutes} min
+                      </div>
                     </div>
-                    <div className="rounded bg-white p-2">
-                      <div className="text-[11px] text-black/60">Best Price</div>
-                      <div className="font-semibold">{selectedStationRow.lowestPriceLabel}</div>
+
+                    <div className="rounded-xl bg-white p-2 shadow-sm ring-1 ring-[#275038]/10">
+                      <div className="text-[10px] uppercase tracking-wide text-stone-500">
+                        Price
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-stone-900">
+                        {selectedStationRow.lowestPriceLabel}
+                      </div>
                     </div>
                   </div>
 
                   {selectedStationRow.station.kind === "gas" && (
-                    <div className="mt-3 rounded bg-white p-2">
-                      <div className="text-[11px] text-black/60">Fuel Prices</div>
-                      <div className="mt-1 text-xs leading-relaxed text-black/80">
+                    <div className="mt-2 rounded-xl bg-white p-2 shadow-sm ring-1 ring-[#275038]/10">
+                      <div className="text-[10px] uppercase tracking-wide text-stone-500">
+                        Fuel Prices
+                      </div>
+                      <div className="mt-1 text-xs leading-relaxed text-stone-700">
                         {formatFuelPrices(selectedStationRow.station.fuelPrices)}
                       </div>
                     </div>
@@ -467,20 +502,20 @@ export default function Map() {
         </div>
       </div>
 
-      <div className="absolute right-4 top-4 rounded bg-white/90 px-3 py-2 text-sm text-black shadow">
-        <div className="mb-1 font-semibold">Legend</div>
+      <div className="absolute right-4 top-4 rounded-xl border border-[#275038]/15 bg-white/90 px-3 py-2 text-sm text-stone-800 shadow-lg backdrop-blur-sm">
+        <div className="mb-1.5 font-semibold text-[#275038]">Legend</div>
         <div className="flex items-center gap-2">
           <img src={gasIconUrl} alt="Gas station marker" className="h-5 w-5" />
           <span>Gas Station</span>
         </div>
-        <div className="mt-1 flex items-center gap-2">
-          <span className="text-2xl leading-none">⚡</span>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="text-lg leading-none">⚡</span>
           <span>EV Charging Station</span>
         </div>
       </div>
 
       {error && (
-        <div className="absolute left-16 top-4 z-30 rounded bg-white/90 px-3 py-2 text-sm shadow">
+        <div className="absolute left-16 top-4 z-30 rounded-xl border border-amber-200 bg-white/95 px-3 py-2 text-sm text-amber-800 shadow-lg backdrop-blur-sm">
           {error}
         </div>
       )}
