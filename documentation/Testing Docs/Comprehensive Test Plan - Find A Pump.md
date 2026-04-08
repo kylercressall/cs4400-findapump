@@ -200,6 +200,28 @@ Input: `GET /api/prices` with service fault
 Expected Output: HTTP 500 + `{ error: 'Failed to fetch all prices' }`
 Test Type: Negative
 
+TEST ID: FN-BB-PR-101
+Priority: P0 (Critical)
+Description: Fuel prices endpoint rejects missing placeId
+Input: `GET /api/prices/fuel`
+Expected Output: HTTP 400
+Test Type: Negative
+
+TEST ID: FN-BB-PR-102
+Priority: P0 (Critical)
+Description: Fuel prices endpoint returns prices for valid placeId
+Input: `GET /api/prices/fuel?placeId={validPlaceId}`
+Expected Output: HTTP 200 + array of fuel price objects containing `type`, `units`, `nanos`, and `updateTime`
+Test Type: Positive
+
+TEST ID: FN-BB-PR-103
+Priority: P0 (Critical)
+Description: Fuel prices endpoint returns server error when fuel service fails
+Input: `GET /api/prices/fuel?placeId={validPlaceId}` with mocked service exception
+Expected Output: HTTP 500
+Test Type: Negative
+
+
 ================================================================================
 
 ### 3.4 TASK API TESTS (BLACK-BOX)
@@ -511,6 +533,33 @@ Execution Path: `Math.cos(latitude)` denominator edge
 Expected Internal State: No unhandled exception for valid latitude bounds
 Test Type: Boundary
 
+#### 4.2.1 PRICE SERVICE (WHITE-BOX)
+
+TEST ID: FN-WB-PS-001
+Priority: P0 (Critical)
+Description: `getFuelPricesByPlaceId` returns parsed fuel price entries
+Target Method: `getFuelPricesByPlaceId`
+Execution Path: successful external API/service response
+Expected Internal State: returned array contains normalized `type`, `units`, `nanos`, and `updateTime`
+Test Type: Path Coverage
+
+TEST ID: FN-WB-PS-002
+Priority: P0 (Critical)
+Description: `getFuelPricesByPlaceId` handles missing API key
+Target Method: `getFuelPricesByPlaceId`
+Execution Path: API key missing branch
+Expected Internal State: throws error for missing Google Maps API key
+Test Type: Branch Coverage
+
+TEST ID: FN-WB-PS-003
+Priority: P1 (High)
+Description: `getFuelPricesByPlaceId` handles failed upstream request
+Target Method: `getFuelPricesByPlaceId`
+Execution Path: non-OK response / thrown exception branch
+Expected Internal State: error propagates to caller for HTTP 500 handling
+Test Type: Branch Coverage
+
+
 ================================================================================
 
 ### 4.3 TASK CONTROLLER/SERVICE (WHITE-BOX)
@@ -703,6 +752,14 @@ CLASS/COMPONENT: `Map.tsx`
 TARGET LINE COVERAGE: 85%
 CRITICAL PATHS: geolocation, allSettled outcomes, render branches
 
+CLASS/COMPONENT: `price.services.ts`
+TARGET LINE COVERAGE: 90%
+CRITICAL PATHS: API key validation, successful fuel price mapping, upstream failure handling
+
+CLASS/COMPONENT: `app.ts`
+TARGET LINE COVERAGE: 85%
+CRITICAL PATHS: root route, allowed-origin CORS branch, blocked-origin CORS branch
+
 OVERALL PROJECT TARGET: 85%+ line coverage for critical modules under active development
 
 ================================================================================
@@ -727,6 +784,7 @@ OVERALL PROJECT TARGET: 85%+ line coverage for critical modules under active dev
 - BB-ST-201
 - BB-FE-001
 - BB-FE-003
+- BB-PR-102
 
 **Exit Criteria**: All smoke tests pass.
 
@@ -768,6 +826,8 @@ IMPLEMENTED AUTOMATION FILES:
 - `find-a-pump-code/apps/backend/tests/whitebox/station.controller.test.ts`
 - `find-a-pump-code/apps/backend/tests/whitebox/station.service.test.ts`
 - `find-a-pump-code/apps/frontend/tests/map.test.tsx`
+- `find-a-pump-code/apps/backend/tests/price.services.test.ts`
+- `find-a-pump-code/apps/backend/tests/app.test.ts`
 
 RUN COMMANDS:
 
@@ -782,7 +842,10 @@ CURRENT AUTOMATED COVERAGE SCOPE:
 - Functional black-box API routing tests (`FN-BB-*`)
 - Functional white-box controller tests (`FN-WB-SC-*`)
 - Functional white-box service tests (`FN-WB-SS-*`)
+- Functional black-box price route tests (`FN-BB-PR-*`)
+- White-box fuel price service tests (`FN-WB-PS-*`)
 - Frontend map component behavior with mocked Google Maps API, geolocation, and Places API callbacks
+- Backend app routing and CORS behavior
 
 EXECUTION ORDER:
 

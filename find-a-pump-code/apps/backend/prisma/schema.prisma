@@ -18,7 +18,7 @@ model User {
 
 model FuelType {
   id        String      @id @default(uuid()) @map("fuel_type_id")
-  name      String?
+  name      String      @unique
   FuelPrice FuelPrice[]
   UserConfig UserConfig[]
 
@@ -80,9 +80,10 @@ model FuelPrice {
   fuelUnit   String?  @map("fuel_unit")
   fuelPrice  Float?   @map("fuel_price")
   createdAt  DateTime @map("created_at")
-  
+
   station    Station  @relation(fields: [stationId], references: [id])
   fuelType   FuelType @relation(fields: [fuelTypeId], references: [id])
 
+  @@unique([stationId, fuelTypeId])
   @@map("FuelPrice")
 }
