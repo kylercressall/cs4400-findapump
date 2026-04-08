@@ -490,8 +490,28 @@ export default function Map() {
                       <div className="text-[10px] uppercase tracking-wide text-stone-500">
                         Fuel Prices
                       </div>
-                      <div className="mt-1 text-xs leading-relaxed text-stone-700">
-                        {formatFuelPrices(selectedStationRow.station.fuelPrices)}
+                      <div className="mt-2 space-y-1 text-xs">
+                        {[...(selectedStationRow.station.fuelPrices ?? [])]
+                          .sort((a, b) => {
+                            const order = ["REGULAR_UNLEADED", "MIDGRADE", "PREMIUM", "DIESEL"];
+                            return order.indexOf(a.type) - order.indexOf(b.type);
+                          })
+                          .map((fuel) => {
+                          const price = fuel.units + fuel.nanos / 1_000_000_000;
+                          return (
+                            <div
+                              key={fuel.type}
+                              className="flex items-center justify-between rounded-md bg-slate-50 px-2 py-1"
+                            >
+                              <span className="text-slate-600">
+                                {fuel.type.replace(/_/g, " ").toLowerCase()}
+                              </span>
+                              <span className="font-semibold text-emerald-800">
+                                ${price.toFixed(3)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
