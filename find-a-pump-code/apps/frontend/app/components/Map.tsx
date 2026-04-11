@@ -1,6 +1,6 @@
 "use client";
 
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
+import { GoogleMap, Marker, useJsApiLoader, MarkerF, InfoWindowF } from "@react-google-maps/api";
 import { useEffect, useMemo, useState } from "react";
 
 const GOOGLE_MAPS_LIBRARIES: [] = [];
@@ -304,22 +304,59 @@ export default function Map() {
       >
         {userLocation && <Marker position={userLocation} icon={userIconUrl} />}
 
-        {stations.map((station) => (
-          <Marker
-            key={station.id}
-            position={station.position}
-            onClick={() => {
-              setSelectedStationId(station.id);
-              setIsPanelCollapsed(false);
-            }}
-            title={
-              station.kind === "gas"
-                ? `${station.name} - ${formatFuelPrices(station.fuelPrices)}`
-                : station.name
-            }
-            icon={station.kind === "ev" ? evIconUrl : gasIconUrl}
-          />
-        ))}
+        {stations.map((station) => {
+          const isSelected = station.id === selectedStationId;
+
+          return (
+            <div key={station.id}>
+              <MarkerF
+                position={station.position}
+                onClick={() => {
+                  setSelectedStationId(station.id);
+                  setIsPanelCollapsed(false);
+                }}
+                icon={station.kind === "ev" ? evIconUrl : gasIconUrl}
+              />
+
+              {isSelected && (
+                <InfoWindowF
+                  position={station.position}
+                  onCloseClick={() => setSelectedStationId(null)}
+                >
+                  <div className="min-w-[220px] rounded-lg bg-white p-3 text-sm text-stone-900 shadow">
+                    <div className="font-semibold">{station.name}</div>
+
+                    {station.kind === "gas" && station.fuelPrices && (
+                      <div className="mt-2 space-y-1">
+                        {[...station.fuelPrices]
+                          .sort((a, b) => {
+                            const order = ["REGULAR_UNLEADED", "MIDGRADE", "PREMIUM", "DIESEL"];
+                            return order.indexOf(a.type) - order.indexOf(b.type);
+                          })
+                          .map((fuel) => {
+                            const price = fuel.units + fuel.nanos / 1_000_000_000;
+                            return (
+                              <div
+                                key={fuel.type}
+                                className="flex justify-between text-xs"
+                              >
+                                <span className="text-stone-600">
+                                  {fuel.type.replace(/_/g, " ").toLowerCase()}
+                                </span>
+                                <span className="font-semibold text-[#275038]">
+                                  ${price.toFixed(3)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                </InfoWindowF>
+              )}
+            </div>
+          );
+        })}
       </GoogleMap>
 
       <div
