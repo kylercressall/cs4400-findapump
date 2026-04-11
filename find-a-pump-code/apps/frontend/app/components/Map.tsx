@@ -69,12 +69,20 @@ function priceToNumber(units?: number, nanos?: number) {
   return (units || 0) + (nanos || 0) / 1_000_000_000;
 }
 
-function getLowestFuelPrice(fuelPrices?: FuelPriceEntry[]) {
+function getLowestFuelPrice(fuelPrices?: FuelPriceEntry[], grade?: string) {
   if (!fuelPrices || fuelPrices.length === 0) {
     return null;
   }
 
-  const numericPrices = fuelPrices
+  const filtered = grade && grade !== "all"
+    ? fuelPrices.filter((fuel) => fuel.type === grade)
+    : fuelPrices;
+
+  if (filtered.length === 0) {
+    return null;
+  }
+
+  const numericPrices = filtered
     .map((fuel) => priceToNumber(fuel.units, fuel.nanos))
     .filter((price) => Number.isFinite(price) && price > 0);
 
@@ -111,7 +119,8 @@ export default function Map() {
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+  const [fuelGrade, setFuelGrade] = useState<string>("all");
+
   const gasIconUrl = useMemo(
     () => "https://maps.gstatic.com/mapfiles/ms2/micons/gas.png",
     []
@@ -139,8 +148,8 @@ export default function Map() {
     const computedRows = filteredStations.map((station) => {
       const distanceMiles = getDistanceMiles(center, station.position);
       const etaMinutes = estimateEtaMinutes(distanceMiles);
-      const lowestPrice = getLowestFuelPrice(station.fuelPrices);
-
+      const lowestPrice = getLowestFuelPrice(station.fuelPrices, fuelGrade);
+      
       return {
         station,
         distanceMiles,
@@ -170,7 +179,7 @@ export default function Map() {
     });
 
     return computedRows;
-  }, [kindFilter, sortBy, stations, userLocation]);
+  }, [fuelGrade, kindFilter, sortBy, stations, userLocation]);
 
   async function fetchFuelOptions(placeId: string): Promise<FuelPriceEntry[]> {
     const response = await fetch(
@@ -387,7 +396,7 @@ export default function Map() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-3 gap-2 text-xs">
                   <label className="flex flex-col gap-1">
                     <span className="font-medium text-stone-600">Sort</span>
                     <select
@@ -413,6 +422,20 @@ export default function Map() {
                       <option value="all">All</option>
                       <option value="gas">Gas</option>
                       <option value="ev">EV</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="font-medium text-stone-600">Grade</span>
+                    <select
+                      value={fuelGrade}
+                      onChange={(event) => setFuelGrade(event.target.value)}
+                      className="rounded-lg border border-stone-300 bg-white px-2.5 py-1.5 text-stone-800 shadow-sm outline-none transition focus:border-[#275038]/40 focus:ring-2 focus:ring-[#275038]/10"
+                    >
+                      <option value="all">All</option>
+                      <option value="REGULAR_UNLEADED">Regular</option>
+                      <option value="MIDGRADE">Midgrade</option>
+                      <option value="PREMIUM">Premium</option>
+                      <option value="DIESEL">Diesel</option>
                     </select>
                   </label>
                 </div>
