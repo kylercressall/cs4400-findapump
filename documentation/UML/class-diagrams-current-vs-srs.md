@@ -1,11 +1,10 @@
 # Find A Pump Class Diagrams
 
-These class diagrams model the current codebase and the additional classes implied by the SRS.
+These class diagrams reflect the current repository implementation and the remaining SRS-required responsibilities.
 
-- `Implemented now` means the responsibility exists in the repository today.
-- `SRS-required / not yet implemented` means the requirement appears in the SRS but no dedicated class or module exists yet.
-- `Implemented inline` means the responsibility exists but as logic embedded in another component rather than a dedicated class.
-- The frontend is a React application built with function components, so the UML uses architectural classes and stereotypes rather than literal TypeScript `class` declarations.
+- Implemented now: responsibility exists in code today.
+- Implemented inline: logic exists but is embedded (not a dedicated module/class).
+- SRS-required / not yet implemented: requirement appears in SRS but no dedicated implementation exists.
 
 ## Frontend Class Diagram
 
@@ -25,13 +24,13 @@ class MapView {
   -stations: Station[]
   -sortBy: SortOption
   -kindFilter: "all" | StationKind
+  -fuelGrade: FuelGradeOption
   -isPanelCollapsed: boolean
   -selectedStationId: string | null
   -error: string | null
   +render(): JSX.Element
-  +detectUserLocation(): void
   +loadStations(loc: LatLng): void
-  +fetchFuelOptions(placeId: string): FuelPriceEntry[]
+  +fetchFuelOptions(placeId: string): Promise~FuelPriceEntry[]~
   +focusStation(stationId: string): void
 }
 
@@ -82,13 +81,21 @@ class SortOption {
   fastest
 }
 
-class DistanceHelpers {
+class FuelGradeOption {
+  <<enum>>
+  all
+  REGULAR_UNLEADED
+  MIDGRADE
+  PREMIUM
+  DIESEL
+}
+
+class DistanceAndPriceHelpers {
   <<utility / implemented inline>>
-  +getDistanceMiles(a: LatLng, b: LatLng): number
-  +estimateEtaMinutes(distanceMiles: number): number
+  +getDistanceMiles(a, b): number
+  +estimateEtaMinutes(distanceMiles): number
   +priceToNumber(units, nanos): number
-  +getLowestFuelPrice(fuelPrices): number | null
-  +formatFuelPrices(fuelPrices): string
+  +getLowestFuelPrice(fuelPrices, grade): number | null
 }
 
 class StationListPanel {
@@ -101,8 +108,10 @@ class SortFilterControls {
   <<implemented inline in MapView>>
   +sortBy: SortOption
   +kindFilter: "all" | StationKind
+  +fuelGrade: FuelGradeOption
   +onSortChange(): void
   +onKindChange(): void
+  +onFuelGradeChange(): void
 }
 
 class SelectedStationDetail {
@@ -111,6 +120,12 @@ class SelectedStationDetail {
   +showDistance(): void
   +showETA(): void
   +showFuelPrices(): void
+}
+
+class LegendPanel {
+  <<implemented inline in MapView>>
+  +showGasMarker(): void
+  +showEVMarker(): void
 }
 
 class ErrorBanner {
@@ -150,40 +165,39 @@ HomePage --> MapView : renders
 MapView --> Station : stores and displays markers for
 MapView --> StationRow : computes via useMemo
 MapView --> LatLng : stores
-MapView --> StationKind : categorizes
+MapView --> StationKind : filters by
 MapView --> SortOption : sorts by
+MapView --> FuelGradeOption : filters cheapest price by
 MapView --> FuelPriceEntry : fetches and stores
 MapView --> StationListPanel : renders inline
 MapView --> SortFilterControls : renders inline
 MapView --> SelectedStationDetail : renders inline
+MapView --> LegendPanel : renders inline
 MapView --> ErrorBanner : renders inline
 MapView --> LoadingIndicator : renders inline
 MapView ..> LocationInputForm : missing manual location entry
 MapView ..> DiscountProgramStore : missing discount logic
 MapView ..> FrontendCacheStore : missing offline/cache flow
 StationRow --> Station : wraps
-StationRow --> DistanceHelpers : computed using
+StationRow --> DistanceAndPriceHelpers : computed using
 SelectedStationDetail --> FuelPriceEntry : displays
 ```
 
 ### Frontend Review Against Current Code
 
 - Implemented now:
-  - `HomePage` renders `MapView`.
-  - `MapView` uses `@react-google-maps/api` for map rendering, browser geolocation, loads the fallback area immediately, and re-fetches when the user's actual coordinates arrive.
-  - Station list panel is rendered inline within `MapView` with sort (cheapest/closest/fastest ETA) and kind (all/gas/EV) filter controls.
-  - Selected-station detail strip shows distance, ETA, and per-fuel-type prices for the highlighted station.
-  - `MapView` now fetches stations from the backend (`/api/maps/nearby/cached` with a background refresh via `/api/maps/nearby`) instead of calling Google Places directly.
-  - Fuel prices per station are fetched from the backend (`/api/prices/fuel?placeId=`) and shown in the detail strip for gas stations.
-  - `Station`, `LatLng`, `StationKind`, `FuelPriceEntry`, `StationRow`, and `SortOption` exist as local TypeScript types.
-  - Distance and ETA helpers (`getDistanceMiles`, `estimateEtaMinutes`) are implemented as inline utility functions.
-  - Inline error banner and "Loading map..." loading state exist.
-- Missing relative to the SRS:
-  - Manual location input (`LocationInputForm`).
-  - No EV charging directions or navigation link.
-  - Discount program CRUD and discount application (`DiscountProgramStore`).
-  - Offline caching and cached fallback behavior in the frontend (`FrontendCacheStore`).
-  - Dedicated accessibility-focused `LoadingIndicator` component (currently just inline text).
+  - Home page renders the map component full-screen.
+  - Map loads fallback area immediately, then re-fetches using geolocation if permission is granted.
+  - Nearby stations are loaded from backend cached endpoint while backend refresh is fired in background.
+  - Sort/filter controls include sort mode, station type, and fuel grade.
+  - Selected station detail includes distance, ETA, lowest price, and per-grade gas prices.
+  - Marker info window for selected station shows station details and gas price rows.
+  - Inline legend and inline error/loading states are implemented.
+- Missing relative to SRS:
+  - Manual location entry form.
+  - Navigation/directions links (especially EV routing flow).
+  - Discount program CRUD and application logic.
+  - Frontend offline cache store and sync strategy.
 
 ## Backend Class Diagram
 
@@ -193,9 +207,9 @@ direction LR
 
 class ExpressApp {
   <<application>>
-  +useRoutes(): void
   +configureCors(): void
   +configureJson(): void
+  +mountRoutes(): void
 }
 
 class StationRoutes {
@@ -228,7 +242,7 @@ class MapsController {
   <<controller>>
   +getNearbyStations(req, res): Promise~void~
   +getCachedStations(req, res): Promise~void~
-  -parseParams(req): CoordinatesQuery
+  -parseParams(req): CoordinatesQueryOrNull
 }
 
 class PriceController {
@@ -240,7 +254,7 @@ class PriceController {
 class StationService {
   <<service>>
   +getStationsWithPrices(): Promise~Station[]~
-  +getStationById(id): Promise~Station~
+  +getStationById(id): Promise~StationOrNull~
   +getStationsByLocation(lat, lng, radiusMiles): Promise~Station[]~
 }
 
@@ -252,6 +266,7 @@ class MapsService {
   -upsertAllStations(stations): Promise~void~
   -dbStationsToNearby(stations): NearbyStation[]
   -parseVicinity(vicinity): AddressParts
+  -log(label, data): void
   -PRICE_MAX_AGE_MS: number
 }
 
@@ -274,6 +289,11 @@ class GooglePlacesNearbyAPI {
 class GooglePlacesDetailsAPI {
   <<external service>>
   +getPlace(placeId, fieldMask): PlaceDetail
+}
+
+class GoogleMapsLogFile {
+  <<infrastructure / implemented now>>
+  +append(entry): void
 }
 
 class User {
@@ -367,7 +387,7 @@ class CacheRefreshJob {
 }
 
 class ValidationMiddleware {
-  <<SRS-required / not yet implemented>>
+  <<SRS-required / partial only>>
   +validateQuery(): void
   +validateBody(): void
 }
@@ -378,7 +398,7 @@ class RateLimitMiddleware {
 }
 
 class MonitoringLogger {
-  <<SRS-required / partial logging only>>
+  <<SRS-required / partial only>>
   +logError(): void
   +logMetric(): void
   +notifyCriticalFailure(): void
@@ -394,7 +414,7 @@ class BackupRecoveryService {
 ExpressApp --> StationRoutes : mounts
 ExpressApp --> MapsRoutes : mounts
 ExpressApp --> PriceRoutes : mounts
-ExpressApp ..> ValidationMiddleware : should use
+ExpressApp ..> ValidationMiddleware : should use shared middleware
 ExpressApp ..> RateLimitMiddleware : should use
 ExpressApp ..> MonitoringLogger : should use
 
@@ -409,11 +429,12 @@ PriceController --> PriceService : uses
 StationService --> PrismaClient : queries through
 MapsService --> PrismaClient : reads/writes through
 MapsService --> GooglePlacesNearbyAPI : calls for live data
+MapsService --> GoogleMapsLogFile : appends raw API logs
 MapsService --> NearbyStation : returns
 MapsService --> FuelPriceEntry : embeds in NearbyStation
 
 PriceService --> GooglePlacesDetailsAPI : fetches fuel options from
-PriceService --> PrismaClient : upserts FuelPrice via
+PriceService --> PrismaClient : upserts FuelPrice/FuelType via
 PriceService --> FuelPriceEntry : returns
 
 User "1" --> "0..*" UserConfig : has
@@ -432,33 +453,22 @@ MonitoringLogger ..> PrismaClient : should record operational events around
 ### Backend Review Against Current Code
 
 - Implemented now:
-  - Express app wiring with CORS (allowlist + private-network pattern) and JSON middleware.
-  - Route, controller, and service separation for stations, maps, and prices.
-  - `MapsService` calls the Google Places Nearby Search API, returns nearby gas and EV stations, and asynchronously upserts station/location/brand cache data into Prisma. `getCachedNearbyStations` now includes fresh fuel prices (within 24 h) from the DB when returning cached results.
-  - `StationService` returns stations with `Location`, `StationBrand`, and sorted `FuelPrice` relations. `getStationsByLocation` performs a bounding-box query using lat/long deltas.
-  - `PriceService` now has a functioning `getFuelPricesByPlaceId` that calls the Google Places Details API (v1), returns the fuel price breakdown, and asynchronously upserts the results into `FuelPrice` and `FuelType` rows via Prisma.
-  - `PriceRoutes` exposes a new `GET /api/prices/fuel?placeId=` endpoint backed by `PriceController.getFuelPricesByPlaceId`.
-  - Prisma entities exist for users, user config, fuel types, fuel prices (with a `(stationId, fuelTypeId)` unique constraint), stations, locations, and brands.
-  - `NearbyStation` DTO now carries an optional `fuelPrices` array of `FuelPriceEntry`.
-  - Basic automated tests exist for the frontend map component and the station controller/service layers.
-- Partial or missing relative to the SRS:
-  - `PriceService.getAllPrices()` is still a stub returning an empty object.
-  - No backend discount-program model or CRUD endpoints (`DiscountProgramService`).
-  - No dedicated cache refresh scheduler or stale-data synchronization job (`CacheRefreshJob`).
-  - Input validation is limited to numeric query checks in `MapsController` and a string check in `PriceController`; no shared `ValidationMiddleware`.
-  - No API rate limiting (`RateLimitMiddleware`).
-  - Logging is ad hoc `console` calls plus a Google Maps API log file; no full monitoring/alerting (`MonitoringLogger`).
-  - No backup/recovery module in application code (`BackupRecoveryService`).
+  - Express app with CORS allowlist + private-network pattern and JSON middleware.
+  - Route/controller/service separation for station, map, and price APIs.
+  - Maps service fetches gas and EV places, returns combined results, and persists station/location/brand cache asynchronously.
+  - Cached map endpoint reads local DB and includes fresh fuel prices (24h threshold).
+  - Price service calls Google Places Details API (v1), normalizes fuel prices, and upserts FuelType/FuelPrice rows asynchronously.
+  - Station service returns related location/brand/fuel data, with fuel prices sorted ascending.
+  - Prisma entities for user config, fuel types, stations, locations, brands, and fuel prices are in schema.
+- Partial/missing relative to SRS:
+  - `getAllPrices()` still returns a stub object.
+  - No discount-program domain model or CRUD endpoints.
+  - No scheduled cache refresh worker/service.
+  - Validation is handler-local only (no shared validation middleware layer).
+  - No rate limiting middleware.
+  - Logging is ad hoc (`console` plus append-to-file), not full monitoring/alerting.
+  - No backup/recovery application module.
 
 ## Summary
 
-The repository now supports a complete end-to-end station discovery and price display flow:
-
-- detect user location (with immediate fallback area load),
-- show a map with gas and EV markers,
-- fetch nearby stations from the backend (with background live refresh and DB-cached fast path),
-- display a sortable/filterable station list panel (by price, distance, ETA; by gas/EV/all),
-- show per-station fuel prices fetched from the Google Places Details API and persisted in the DB,
-- display a selected-station detail strip with distance, ETA, and per-fuel-type price breakdown.
-
-The largest remaining SRS gaps are manual location input, detailed navigation links, discount management, offline/cache orchestration on the frontend, shared validation/security middleware, and operational services such as rate limiting, monitoring, and backup/recovery.
+The current implementation supports end-to-end nearby discovery, sorting/filtering, and station-level fuel-price display with DB-backed caching. The largest SRS gaps remain manual location entry, discount management, frontend offline strategy, and backend operational hardening (shared validation, rate limiting, monitoring, backup/recovery).
