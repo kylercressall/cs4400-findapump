@@ -1,36 +1,180 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useEffect } from "react";
 import Map from "../app/components/Map";
 import * as GoogleMapsApi from "@react-google-maps/api";
 
 const mockPanTo = vi.fn();
-const nearbySearchMock = vi.fn();
-let markerProps: any[] = [];
+const mockSetZoom = vi.fn();
+
+type FuelPriceEntry = {
+  type: string;
+  units: number;
+  nanos: number;
+  updateTime?: string;
+};
+
+type BackendStation = {
+  place_id: string;
+  name: string;
+  kind: "gas" | "ev";
+  lat: number;
+  lng: number;
+  vicinity: string;
+  fuelPrices?: FuelPriceEntry[];
+};
+
+const fallbackCoords = { lat: 40.2338, lng: -111.6585 };
+const userCoords = { lat: 40.25, lng: -111.65 };
+
+function jsonResponse(data: unknown, ok = true, status = 200) {
+  return Promise.resolve({
+    ok,
+    status,
+    json: async () => data,
+  });
+}
+
+function makeParams(lat: number, lng: number) {
+  return `lat=${lat}&lng=${lng}&radius=5000`;
+}
+
+const fallbackStations: BackendStation[] = [
+  {
+    place_id: "fallback-gas",
+    name: "Fallback Fuel",
+    kind: "gas",
+    lat: 40.234,
+    lng: -111.659,
+    vicinity: "Fallback Ave",
+    fuelPrices: [{ type: "REGULAR_UNLEADED", units: 3, nanos: 199000000 }],
+  },
+];
+
+const userStations: BackendStation[] = [
+  {
+    place_id: "gas-1",
+    name: "Budget Fuel",
+    kind: "gas",
+    lat: 40.251,
+    lng: -111.651,
+    vicinity: "123 Main St",
+    fuelPrices: [{ type: "REGULAR_UNLEADED", units: 2, nanos: 900000000 }],
+  },
+  {
+    place_id: "gas-2",
+    name: "Premium Fuel",
+    kind: "gas",
+    lat: 40.252,
+    lng: -111.652,
+    vicinity: "456 Oak St",
+    fuelPrices: [{ type: "REGULAR_UNLEADED", units: 3, nanos: 500000000 }],
+  },
+  {
+    place_id: "ev-1",
+    name: "Tesla Supercharger",
+    kind: "ev",
+    lat: 40.253,
+    lng: -111.653,
+    vicinity: "789 Pine St",
+  },
+];
+
+function installDefaultFetchMock() {
+  global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+
+    if (url.includes(`/api/maps/nearby?${makeParams(fallbackCoords.lat, fallbackCoords.lng)}`)) {
+      return jsonResponse({ refreshed: true });
+    }
+
+    if (url.includes(`/api/maps/nearby?${makeParams(userCoords.lat, userCoords.lng)}`)) {
+      return jsonResponse({ refreshed: true });
+    }
+
+    if (
+      url.includes(`/api/maps/nearby/cached?${makeParams(fallbackCoords.lat, fallbackCoords.lng)}`)
+    ) {
+      return jsonResponse(fallbackStations);
+    }
+
+    if (
+      url.includes(`/api/maps/nearby/cached?${makeParams(userCoords.lat, userCoords.lng)}`)
+    ) {
+      return jsonResponse(userStations);
+    }
+
+    if (url.includes("/api/prices/fuel?placeId=")) {
+      return jsonResponse([
+        { type: "REGULAR_UNLEADED", units: 3, nanos: 299000000 },
+      ]);
+    }
+
+    return jsonResponse({ message: "Not found" }, false, 404);
+  }) as any;
+}
+
+function getComboboxes() {
+  return screen.getAllByRole("combobox");
+  // [0] sort, [1] type, [2] grade
+}
+
+function getStationRows() {
+  return screen.queryAllByTestId("station-row");
+}
+
+function getRowByName(name: string) {
+  return getStationRows().find((row) => within(row).queryByText(name));
+}
+
+async function waitForRow(name: string) {
+  await waitFor(() => {
+    expect(getRowByName(name)).toBeTruthy();
+  });
+}
+
+async function waitForUserRows() {
+  await waitFor(() => {
+    expect(getRowByName("Budget Fuel")).toBeTruthy();
+    expect(getRowByName("Premium Fuel")).toBeTruthy();
+    expect(getRowByName("Tesla Supercharger")).toBeTruthy();
+  });
+}
 
 vi.mock("@react-google-maps/api", () => ({
   useJsApiLoader: vi.fn(() => ({ isLoaded: true })),
   GoogleMap: ({ children, onLoad }: any) => {
     useEffect(() => {
-      onLoad?.({ panTo: mockPanTo });
+      onLoad?.({
+        panTo: mockPanTo,
+        setZoom: mockSetZoom,
+      });
     }, [onLoad]);
 
     return <div data-testid="google-map">{children}</div>;
   },
-  Marker: (props: any) => {
-    markerProps.push(props);
-    return <div data-testid="marker" data-title={props.title || ""} />;
-  },
+  Marker: () => <div data-testid="user-marker" />,
+  MarkerF: ({ onClick }: any) => (
+    <button type="button" data-testid="station-marker" onClick={onClick}>
+      marker
+    </button>
+  ),
+  InfoWindowF: ({ children }: any) => (
+    <div data-testid="info-window">{children}</div>
+  ),
 }));
 
 describe("Map", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    markerProps = [];
-    nearbySearchMock.mockReset();
 
-    vi.mocked(GoogleMapsApi.useJsApiLoader).mockReturnValue({ isLoaded: true } as any);
+    vi.mocked(GoogleMapsApi.useJsApiLoader).mockReturnValue({
+      isLoaded: true,
+    } as any);
+
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "test-key";
+    process.env.NEXT_PUBLIC_BACKEND_URL = "http://localhost:4000";
 
     Object.defineProperty(global.navigator, "geolocation", {
       value: {
@@ -39,31 +183,13 @@ describe("Map", () => {
       configurable: true,
     });
 
-    (globalThis as any).google = {
-      maps: {
-        places: {
-          PlacesServiceStatus: {
-            OK: "OK",
-            ZERO_RESULTS: "ZERO_RESULTS",
-          },
-          PlacesService: vi.fn(() => ({
-            nearbySearch: nearbySearchMock,
-          })),
-        },
-      },
-    };
-
-    (globalThis as any).fetch = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({ fuelOptions: { fuelPrices: [] } }),
-    }));
-
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = "test-key";
+    installDefaultFetchMock();
   });
 
   it("shows loading state before the map API is loaded", () => {
-    vi.mocked(GoogleMapsApi.useJsApiLoader).mockReturnValue({ isLoaded: false } as any);
+    vi.mocked(GoogleMapsApi.useJsApiLoader).mockReturnValue({
+      isLoaded: false,
+    } as any);
 
     render(<Map />);
 
@@ -79,133 +205,66 @@ describe("Map", () => {
     expect(screen.getByText("EV Charging Station")).toBeInTheDocument();
   });
 
-  it("detects user location and displays nearby stations", async () => {
-    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
-      (success: any) => {
-        success({
-          coords: {
-            latitude: 40.25,
-            longitude: -111.65,
-          },
-        });
-      }
-    );
+  it("loads fallback stations immediately", async () => {
+    render(<Map />);
 
-    nearbySearchMock
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback(
-          [
-            {
-              place_id: "gas1",
-              name: "Shell",
-              geometry: {
-                location: {
-                  lat: () => 40.251,
-                  lng: () => -111.651,
-                },
-              },
-            },
-          ],
-          "OK"
-        );
-      })
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback(
-          [
-            {
-              place_id: "ev1",
-              name: "Tesla Supercharger",
-              geometry: {
-                location: {
-                  lat: () => 40.252,
-                  lng: () => -111.652,
-                },
-              },
-            },
-          ],
-          "OK"
-        );
+    await waitForRow("Fallback Fuel");
+
+    expect(getRowByName("Fallback Fuel")).toBeTruthy();
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/maps/nearby?")
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/maps/nearby/cached?")
+      );
+    });
+  });
+
+  it("detects user location, pans the map, and reloads stations for that location", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation((success: any) => {
+      success({
+        coords: {
+          latitude: userCoords.lat,
+          longitude: userCoords.lng,
+        },
       });
+    });
 
     render(<Map />);
 
     await waitFor(() => {
-      expect(mockPanTo).toHaveBeenCalledWith({
-        lat: 40.25,
-        lng: -111.65,
-      });
+      expect(mockPanTo).toHaveBeenCalledWith(userCoords);
     });
+
+    await waitForUserRows();
 
     await waitFor(() => {
-      expect(screen.getAllByTestId("marker")).toHaveLength(3);
+      expect(getStationRows()).toHaveLength(3);
     });
-
-    expect(nearbySearchMock).toHaveBeenCalledTimes(2);
-    expect(markerProps.map((m) => m.title).some((title) => title?.includes("Shell"))).toBe(
-      true
-    );
-    expect(
-      markerProps
-        .map((m) => m.title)
-        .some((title) => title?.includes("Tesla Supercharger"))
-    ).toBe(true);
   });
 
-  it("shows no station markers when both searches return zero results", async () => {
-    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
-      (success: any) => {
-        success({
-          coords: {
-            latitude: 40.25,
-            longitude: -111.65,
-          },
-        });
-      }
-    );
-
-    nearbySearchMock
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ZERO_RESULTS");
-      })
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ZERO_RESULTS");
-      });
-
-    render(<Map />);
-
-    await waitFor(() => {
-      expect(mockPanTo).toHaveBeenCalledWith({
-        lat: 40.25,
-        lng: -111.65,
-      });
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("marker")).toHaveLength(1);
-    });
-
-    expect(screen.queryByText("Unable to load nearby stations.")).not.toBeInTheDocument();
-    expect(screen.queryByText("Some nearby stations could not be loaded.")).not.toBeInTheDocument();
-  });
-
-  it("shows an error when location permission is denied", async () => {
+  it("shows a permission denied message and keeps the fallback area when location access fails", async () => {
     (navigator.geolocation.getCurrentPosition as any).mockImplementation(
       (_success: any, error: any) => {
-        error();
+        setTimeout(() => error({ code: 1, message: "Permission denied" }), 0);
       }
     );
-
+  
     render(<Map />);
-
-    expect(
-      await screen.findByText("Location permission denied. Showing the default area.")
-    ).toBeInTheDocument();
-
-    expect(screen.queryAllByTestId("marker")).toHaveLength(0);
-    expect(nearbySearchMock).not.toHaveBeenCalled();
+  
+    await waitFor(() => {
+      expect(
+        screen.getByText("Location permission denied. Showing the default area.")
+      ).toBeInTheDocument();
+    });
+  
+    await waitForRow("Fallback Fuel");
+    expect(mockPanTo).not.toHaveBeenCalled();
   });
 
-  it("shows an error when geolocation is not supported", async () => {
+  it("still loads fallback stations when geolocation is unavailable", async () => {
     Object.defineProperty(global.navigator, "geolocation", {
       value: undefined,
       configurable: true,
@@ -213,137 +272,36 @@ describe("Map", () => {
 
     render(<Map />);
 
-    expect(
-      await screen.findByText("Geolocation is not supported by this browser.")
-    ).toBeInTheDocument();
+    await waitForRow("Fallback Fuel");
 
-    expect(screen.queryAllByTestId("marker")).toHaveLength(0);
-    expect(nearbySearchMock).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("Geolocation is not supported by this browser.")
+    ).not.toBeInTheDocument();
   });
 
-  it("shows partial error when one station search fails", async () => {
-    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
-      (success: any) => {
-        success({
-          coords: {
-            latitude: 40.25,
-            longitude: -111.65,
-          },
-        });
+  it("shows an error when the cached nearby stations request fails", async () => {
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.includes("/api/maps/nearby?")) {
+        return jsonResponse({ refreshed: true });
       }
-    );
 
-    nearbySearchMock
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback(
-          [
-            {
-              place_id: "gas1",
-              name: "Chevron",
-              geometry: {
-                location: {
-                  lat: () => 40.255,
-                  lng: () => -111.655,
-                },
-              },
-            },
-          ],
-          "OK"
-        );
-      })
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ERROR");
-      });
-
-    render(<Map />);
-
-    expect(
-      await screen.findByText("Some nearby stations could not be loaded.")
-    ).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("marker")).toHaveLength(2);
-    });
-
-    expect(mockPanTo).toHaveBeenCalledWith({
-      lat: 40.25,
-      lng: -111.65,
-    });
-    expect(
-      markerProps.map((m) => m.title).some((title) => title?.includes("Chevron"))
-    ).toBe(true);
-  });
-
-  it("shows an error when both station searches fail", async () => {
-    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
-      (success: any) => {
-        success({
-          coords: {
-            latitude: 40.25,
-            longitude: -111.65,
-          },
-        });
+      if (url.includes("/api/maps/nearby/cached?")) {
+        return jsonResponse({ message: "server error" }, false, 500);
       }
-    );
 
-    nearbySearchMock
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ERROR");
-      })
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ERROR");
-      });
+      return jsonResponse({ message: "Not found" }, false, 404);
+    }) as any;
 
     render(<Map />);
 
     expect(
       await screen.findByText("Unable to load nearby stations.")
     ).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getAllByTestId("marker")).toHaveLength(1);
-    });
-
-    expect(mockPanTo).toHaveBeenCalledWith({
-      lat: 40.25,
-      lng: -111.65,
-    });
   });
 
   it("collapses and expands the left station panel", async () => {
-    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
-      (success: any) => {
-        success({
-          coords: {
-            latitude: 40.25,
-            longitude: -111.65,
-          },
-        });
-      }
-    );
-
-    nearbySearchMock
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback(
-          [
-            {
-              place_id: "gas1",
-              name: "Shell",
-              geometry: {
-                location: {
-                  lat: () => 40.251,
-                  lng: () => -111.651,
-                },
-              },
-            },
-          ],
-          "OK"
-        );
-      })
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ZERO_RESULTS");
-      });
-
     render(<Map />);
 
     expect(await screen.findByText("Nearby Stations")).toBeInTheDocument();
@@ -355,85 +313,119 @@ describe("Map", () => {
     expect(screen.getByText("Nearby Stations")).toBeInTheDocument();
   });
 
-  it("sorts gas stations by cheapest price by default", async () => {
-    (navigator.geolocation.getCurrentPosition as any).mockImplementation(
-      (success: any) => {
-        success({
-          coords: {
-            latitude: 40.25,
-            longitude: -111.65,
-          },
-        });
-      }
-    );
-
-    (globalThis as any).fetch = vi.fn(async (url: string) => {
-      if (url.includes("gas1")) {
-        return {
-          ok: true,
-          json: async () => ({
-            fuelOptions: {
-              fuelPrices: [
-                { type: "Regular", price: { units: 3, nanos: 500000000 } },
-              ],
-            },
-          }),
-        };
-      }
-
-      return {
-        ok: true,
-        json: async () => ({
-          fuelOptions: {
-            fuelPrices: [
-              { type: "Regular", price: { units: 2, nanos: 900000000 } },
-            ],
-          },
-        }),
-      };
+  it("sorts stations by cheapest price by default", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation((success: any) => {
+      success({
+        coords: {
+          latitude: userCoords.lat,
+          longitude: userCoords.lng,
+        },
+      });
     });
 
-    nearbySearchMock
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback(
-          [
-            {
-              place_id: "gas1",
-              name: "Expensive Fuel",
-              geometry: {
-                location: {
-                  lat: () => 40.251,
-                  lng: () => -111.651,
-                },
-              },
-            },
-            {
-              place_id: "gas2",
-              name: "Budget Fuel",
-              geometry: {
-                location: {
-                  lat: () => 40.252,
-                  lng: () => -111.652,
-                },
-              },
-            },
-          ],
-          "OK"
-        );
-      })
-      .mockImplementationOnce((_request: any, callback: any) => {
-        callback([], "ZERO_RESULTS");
-      });
-
     render(<Map />);
-
-    await screen.findByText("Budget Fuel");
+    await waitForUserRows();
 
     await waitFor(() => {
-      const stationRows = screen.getAllByTestId("station-row");
-      expect(stationRows).toHaveLength(2);
-      expect(stationRows[0]).toHaveTextContent("Budget Fuel");
-      expect(stationRows[1]).toHaveTextContent("Expensive Fuel");
+      const rows = getStationRows();
+      expect(rows).toHaveLength(3);
+      expect(rows[0]).toHaveTextContent("Budget Fuel");
+      expect(rows[1]).toHaveTextContent("Premium Fuel");
+    });
+  });
+
+  it("filters stations by type", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation((success: any) => {
+      success({
+        coords: {
+          latitude: userCoords.lat,
+          longitude: userCoords.lng,
+        },
+      });
+    });
+
+    render(<Map />);
+    await waitForUserRows();
+
+    const [, typeSelect] = getComboboxes();
+    fireEvent.change(typeSelect, { target: { value: "ev" } });
+
+    await waitFor(() => {
+      const rows = getStationRows();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toHaveTextContent("Tesla Supercharger");
+    });
+  });
+
+  it("filters gas stations by fuel grade and shows N/A when the selected grade is unavailable", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation((success: any) => {
+      success({
+        coords: {
+          latitude: userCoords.lat,
+          longitude: userCoords.lng,
+        },
+      });
+    });
+
+    render(<Map />);
+    await waitForUserRows();
+
+    const [, , gradeSelect] = getComboboxes();
+    fireEvent.change(gradeSelect, { target: { value: "PREMIUM" } });
+
+    await waitFor(() => {
+      const budgetRow = getRowByName("Budget Fuel");
+      expect(budgetRow).toBeTruthy();
+      expect(budgetRow!).toHaveTextContent("N/A");
+    });
+  });
+
+  it("sorts by closest when the sort option changes", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation((success: any) => {
+      success({
+        coords: {
+          latitude: userCoords.lat,
+          longitude: userCoords.lng,
+        },
+      });
+    });
+
+    render(<Map />);
+    await waitForUserRows();
+
+    const [sortSelect] = getComboboxes();
+    fireEvent.change(sortSelect, { target: { value: "closest" } });
+
+    await waitFor(() => {
+      const rows = getStationRows();
+      expect(rows[0]).toHaveTextContent("Budget Fuel");
+    });
+  });
+
+  it("focuses a station when its row is clicked", async () => {
+    (navigator.geolocation.getCurrentPosition as any).mockImplementation((success: any) => {
+      success({
+        coords: {
+          latitude: userCoords.lat,
+          longitude: userCoords.lng,
+        },
+      });
+    });
+
+    render(<Map />);
+    await waitForUserRows();
+
+    const premiumRow = getRowByName("Premium Fuel");
+    expect(premiumRow).toBeTruthy();
+
+    fireEvent.click(premiumRow!);
+
+    await waitFor(() => {
+      expect(mockPanTo).toHaveBeenCalledWith({
+        lat: 40.252,
+        lng: -111.652,
+      });
+      expect(mockSetZoom).toHaveBeenCalledWith(14);
     });
   });
 });
