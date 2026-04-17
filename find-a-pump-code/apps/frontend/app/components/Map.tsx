@@ -45,6 +45,16 @@ function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
 
+function openGoogleMapsDirections(station: Station) {
+  const { lat, lng } = station.position;
+
+  const url = station.placeId
+    ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&destination_place_id=${station.placeId}&travelmode=driving`
+    : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+  window.open(url, "_blank");
+}
+
 function getDistanceMiles(a: LatLng, b: LatLng) {
   const earthRadiusMiles = 3958.8;
   const dLat = toRadians(b.lat - a.lat);
@@ -511,6 +521,12 @@ export default function Map() {
                 <div className="border-t border-[#275038]/10 bg-[#275038]/[0.045] px-3 py-3">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
                     Selected Station
+                    <button
+                      onClick={() => openGoogleMapsDirections(selectedStationRow.station)}
+                      className="mt-3 w-full rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                    >
+                      Get Directions in Google Maps
+                    </button>
                   </div>
                   <div className="mt-1 text-sm font-bold text-stone-900">
                     {selectedStationRow.station.name}
