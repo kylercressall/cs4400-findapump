@@ -461,7 +461,7 @@ MonitoringLogger ..> PrismaClient : should record operational events around
   - Station service returns related location/brand/fuel data, with fuel prices sorted ascending.
   - Prisma entities for user config, fuel types, stations, locations, brands, and fuel prices are in schema.
 - Partial/missing relative to SRS:
-  - `getAllPrices()` still returns a stub object.
+  - `getAllPrices()` still returns a stub object. 
   - No discount-program domain model or CRUD endpoints.
   - No scheduled cache refresh worker/service.
   - Validation is handler-local only (no shared validation middleware layer).
