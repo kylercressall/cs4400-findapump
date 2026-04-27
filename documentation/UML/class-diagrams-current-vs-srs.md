@@ -69,20 +69,20 @@ class LatLng {
 }
 
 class StationKind {
-  <<enum>>
+  <<type>>
   gas
   ev
 }
 
 class SortOption {
-  <<enum>>
+  <<type>>
   cheapest
   closest
   fastest
 }
 
 class FuelGradeOption {
-  <<enum>>
+  <<implemented inline>>
   all
   REGULAR_UNLEADED
   MIDGRADE
@@ -96,6 +96,12 @@ class DistanceAndPriceHelpers {
   +estimateEtaMinutes(distanceMiles): number
   +priceToNumber(units, nanos): number
   +getLowestFuelPrice(fuelPrices, grade): number | null
+  +formatFuelPrices(fuelPrices?: FuelPriceEntry[]): string
+}
+
+class NavigationHelpers {
+  <<utility / implemented now>>
+  +openGoogleMapsDirections(station: Station): void
 }
 
 class StationListPanel {
@@ -120,6 +126,7 @@ class SelectedStationDetail {
   +showDistance(): void
   +showETA(): void
   +showFuelPrices(): void
+  +openDirectionsLink(): void
 }
 
 class LegendPanel {
@@ -181,6 +188,7 @@ MapView ..> FrontendCacheStore : missing offline/cache flow
 StationRow --> Station : wraps
 StationRow --> DistanceAndPriceHelpers : computed using
 SelectedStationDetail --> FuelPriceEntry : displays
+SelectedStationDetail --> NavigationHelpers : invokes on directions click
 ```
 
 ### Frontend Review Against Current Code
@@ -193,11 +201,17 @@ SelectedStationDetail --> FuelPriceEntry : displays
   - Selected station detail includes distance, ETA, lowest price, and per-grade gas prices.
   - Marker info window for selected station shows station details and gas price rows.
   - Inline legend and inline error/loading states are implemented.
+  - **Sprint 4 new:** `openGoogleMapsDirections()` helper opens turn-by-turn navigation in Google Maps for the selected station using place ID when available (FR-CD-11).
+  - **Sprint 4 new:** "Get Directions in Google Maps" button rendered in the selected station detail panel.
+  - **Sprint 4 new:** `formatFuelPrices()` helper utility added for formatting fuel price display strings.
+  - `SortOption` and `StationKind` are TypeScript type aliases (string unions), not formal enums.
+  - `FuelGradeOption` values are embedded inline as string state (`useState<string>`), no formal type defined.
 - Missing relative to SRS:
-  - Manual location entry form.
-  - Navigation/directions links (especially EV routing flow).
-  - Discount program CRUD and application logic.
-  - Frontend offline cache store and sync strategy.
+  - Manual location entry form (FR-CD-2).
+  - Discount program CRUD and application logic (FR-SF-7 to FR-SF-11).
+  - Frontend offline cache store and sync strategy (FR-DH-2, FR-DH-3, FR-DH-4).
+  - Price threshold filter UI (FR-SF-4).
+  - EV-specific directions routing flow.
 
 ## Backend Class Diagram
 
@@ -460,15 +474,19 @@ MonitoringLogger ..> PrismaClient : should record operational events around
   - Price service calls Google Places Details API (v1), normalizes fuel prices, and upserts FuelType/FuelPrice rows asynchronously.
   - Station service returns related location/brand/fuel data, with fuel prices sorted ascending.
   - Prisma entities for user config, fuel types, stations, locations, brands, and fuel prices are in schema.
+  - `parseParams()` in `MapsController` validates `lat`/`lng` query parameters and guards on NaN (handler-local validation).
+  - `dev.db` file removed from version control; database is environment-configured via `DATABASE_URL`.
 - Partial/missing relative to SRS:
-  - `getAllPrices()` still returns a stub object. 
-  - No discount-program domain model or CRUD endpoints.
-  - No scheduled cache refresh worker/service.
-  - Validation is handler-local only (no shared validation middleware layer).
-  - No rate limiting middleware.
-  - Logging is ad hoc (`console` plus append-to-file), not full monitoring/alerting.
-  - No backup/recovery application module.
+  - `getAllPrices()` still returns a stub object (FR-DH-1 partial).
+  - No discount-program domain model or CRUD endpoints (FR-SF-7 to FR-SF-11).
+  - No scheduled cache refresh worker/service (FR-DH-4, NFR-DI-4).
+  - Validation is handler-local only (no shared `ValidationMiddleware` layer, NFR-SE-2).
+  - No rate limiting middleware (NFR-SE-3).
+  - Logging is ad hoc (`console` plus append-to-file), not full monitoring/alerting (NFR-LM-3, NFR-LM-4).
+  - No backup/recovery application module (NFR-BR-1 to NFR-BR-4).
 
 ## Summary
 
-The current implementation supports end-to-end nearby discovery, sorting/filtering, and station-level fuel-price display with DB-backed caching. The largest SRS gaps remain manual location entry, discount management, frontend offline strategy, and backend operational hardening (shared validation, rate limiting, monitoring, backup/recovery).
+The current implementation supports end-to-end nearby discovery, sorting/filtering, station-level fuel-price display with DB-backed caching, and **Google Maps turn-by-turn directions** from the selected station detail panel (added Sprint 4). The `dev.db` file has been removed from version control; the database is managed entirely through environment configuration.
+
+The largest remaining SRS gaps are: manual location entry, discount program management, frontend offline cache/sync strategy, price threshold filtering, API rate limiting, and backend operational hardening (shared validation middleware, monitoring/alerting, and backup/recovery).
