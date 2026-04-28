@@ -104,12 +104,12 @@ The `/api/stations` endpoint likely makes external API calls (e.g., Google Place
 
 ### STATUS
 
-- [X] New
+- [ ] New
 - [ ] Assigned
 - [ ] In Progress
-- [ ] Fixed
-- [ ] Retested
-- [ ] Closed
+- [X] Fixed
+- [X] Retested
+- [X] Closed
 
 ---
 
@@ -127,6 +127,15 @@ Likely root causes:
 - No database indexing on frequently queried columns
 - No connection pooling configured for Prisma
 - Potential fix: add in-memory or Redis cache for station data, add DB indexes, configure Prisma connection pool
+
+Latest retest passed:
+
+- Avg latency: 336.67ms
+- P95 latency: 504.86ms
+- Error rate: 0.00%
+- NF-RESULT: PASS
+
+Because the endpoint now meets the P95 latency and error-rate thresholds, this bug is closed.
 
 ================================================================================
 
@@ -160,6 +169,15 @@ Validate that `/api/stations` P95 latency remains under 700ms at 10 concurrent r
 
 - P95 latency ≤ 700ms
 - Error rate ≤ 5%
+- NF-RESULT: PASS
+
+---
+
+### LATEST TEST RESULT
+
+- Avg latency: 336.67ms
+- P95 latency: 504.86ms
+- Error rate: 0.00%
 - NF-RESULT: PASS
 
 ---
@@ -242,6 +260,20 @@ API endpoint `/api/stations` does not scale under concurrent load. At 25 concurr
 
 ---
 
+Latest retest result:
+
+| Concurrency | Total Time | Degradation | Result |
+| ----------- | ---------- | ----------- | ------ |
+| 1           | 69ms       | 1.00x       | PASS   |
+| 5           | 157ms      | 2.28x       | PASS   |
+| 10          | 310ms      | 4.49x       | PASS   |
+| 25          | 759ms      | 11.00x      | PASS   |
+| 50          | 1389ms     | 20.13x      | FAIL   |
+
+The endpoint improved, but the scalability test still fails at 50 concurrent requests because 20.13x exceeds the 12x maximum degradation threshold.
+
+---
+
 ### JUSTIFICATION
 
 At 50 concurrent requests the response time degrades by 48x, meaning users would experience ~7 second response times under moderate traffic. This indicates the backend cannot handle concurrent load due to missing caching, lack of connection pooling, or blocking external API calls on every request.
@@ -268,11 +300,11 @@ At 50 concurrent requests the response time degrades by 48x, meaning users would
 
 ### STATUS
 
-- [X] New
+- [ ] New
 - [ ] Assigned
-- [ ] In Progress
+- [X] In Progress
 - [ ] Fixed
-- [ ] Retested
+- [X] Retested
 - [ ] Closed
 
 ---
@@ -291,6 +323,13 @@ Likely root causes (same as NF-LOAD-001):
 - No Prisma connection pooling
 - No database indexes on queried columns
 - Potential fix: implement response caching (in-memory/Redis), add DB indexes, configure Prisma connection pool, consider rate limiting external API calls
+
+Latest retest result:
+
+- 1, 5, 10, and 25 concurrent requests now pass.
+- 50 concurrent requests still fails at 20.13x baseline degradation.
+- Max degradation allowed is 12x.
+- Because the highest concurrency level still fails, this bug remains open.
 
 ================================================================================
 
@@ -316,7 +355,7 @@ Validate that `/api/stations` scales within 12x degradation at all concurrency l
 
 1. Start the backend server on `localhost:4000`
 2. Run `pnpm run test:nf:scalability`
-3. Observe degradation factor at each concurrency level
+3. Observe degradation factor at each level
 
 ---
 
@@ -324,6 +363,20 @@ Validate that `/api/stations` scales within 12x degradation at all concurrency l
 
 - All concurrency levels (1, 5, 10, 25, 50) stay within 12x baseline
 - NF-RESULT: PASS
+
+---
+
+### LATEST TEST RESULT
+
+| Concurrency | Total Time | Degradation | Result |
+| ----------- | ---------- | ----------- | ------ |
+| 1           | 69ms       | 1.00x       | PASS   |
+| 5           | 157ms      | 2.28x       | PASS   |
+| 10          | 310ms      | 4.49x       | PASS   |
+| 25          | 759ms      | 11.00x      | PASS   |
+| 50          | 1389ms     | 20.13x      | FAIL   |
+
+Current result: FAIL
 
 ---
 
